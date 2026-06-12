@@ -41,7 +41,6 @@ const CONFIG = {
     {
       id: "driveway",
       name: "Driveway",
-      emoji: "🚗",
       blurb: "Concrete or pavers",
       rate: 0.25,
       min: 99,
@@ -55,7 +54,6 @@ const CONFIG = {
     {
       id: "patio",
       name: "Patio / Pool Deck",
-      emoji: "⛱️",
       blurb: "Concrete, stone or pavers",
       rate: 0.3,
       min: 99,
@@ -69,7 +67,6 @@ const CONFIG = {
     {
       id: "walkway",
       name: "Sidewalk / Walkway",
-      emoji: "🚶",
       blurb: "Paths & front walks",
       rate: 0.3,
       min: 49,
@@ -83,7 +80,6 @@ const CONFIG = {
     {
       id: "house",
       name: "House Wash",
-      emoji: "🏠",
       blurb: "Soft wash siding, all sides",
       mappable: false,
       presets: [
@@ -95,7 +91,6 @@ const CONFIG = {
     {
       id: "deck",
       name: "Wood Deck / Fence",
-      emoji: "🪵",
       blurb: "Gentle wash, no damage",
       rate: 0.4,
       min: 99,

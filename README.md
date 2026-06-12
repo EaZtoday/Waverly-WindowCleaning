@@ -1,13 +1,18 @@
-# Instant Pressure Washing Quote Tool
+# Waverly Pressure Washing — Instant Quote
 
-A customer-facing self-quoting page. A customer scans the QR code on your
-postcard, lands here on their phone, and in about 60 seconds:
+A customer-facing self-quoting page that feels like Google Maps. A customer
+scans the QR code on your postcard, lands here on their phone, and in about
+60 seconds:
 
-1. **Types their address** (so you know where the job is)
-2. **Taps what needs cleaning** — driveway, patio, house wash, deck…
-3. **Taps a size** ("2-car driveway") — or outlines the area on a
-   satellite photo of their own house for an exact square footage
-4. **Sees their price instantly** — with an automatic bundle discount
+1. **Types their address** in the floating search bar — autocomplete
+   suggests it and the satellite map flies to their house
+2. **Taps what needs cleaning** in the bottom sheet — driveway, patio,
+   house wash, deck…
+3. **Taps a size** ("2-car driveway") — or **traces the actual surface**
+   on the satellite photo, corner by corner, with live square footage.
+   They can add extra sections and cut out holes (like a pool) too.
+4. **Watches their price count up** — line items plus an automatic
+   bundle discount
 5. **Requests a booking** — name, phone, preferred day → lands in your inbox
 
 No app install, no account, no backend, no monthly fees.
@@ -19,6 +24,12 @@ No app install, no account, no backend, no monthly fees.
 Open **`config.js`**. Everything you'd ever want to change is in that one
 file, with comments: business name, phone, email, per-square-foot rates,
 size presets, minimum job, bundle discount. Edit, save, done.
+
+## Change the look
+
+Open **`DESIGN.md`** for the full design system. Every color, font size,
+radius, and shadow is a token at the top of `styles.css` — change it once,
+it changes everywhere.
 
 ## Get booking requests in your inbox (5 minutes, free)
 
@@ -45,7 +56,11 @@ can later tell postcard traffic apart in analytics if you add any.
 ## Tech notes
 
 - Plain HTML/CSS/JS, mobile-first — no build step, no framework
-- [Leaflet](https://leafletjs.com) + Esri World Imagery for the satellite measuring tool
-- [Nominatim](https://nominatim.org) (OpenStreetMap) for one-shot address lookup
-- Square footage computed with a geodesic spherical-excess formula (exact, no libraries)
+- [Leaflet](https://leafletjs.com) + Esri World Imagery for the always-on satellite map
+- [Nominatim](https://nominatim.org) (OpenStreetMap) for address autocomplete
+- Square footage computed with a geodesic spherical-excess formula (exact, no libraries);
+  cut-out shapes subtract from the total
+- Draggable bottom sheet with three snap points (peek / half / full); docks
+  as a left panel on desktop
 - Booking delivery via [Web3Forms](https://web3forms.com) with `mailto:` fallback
+- Inline SVG icon sprite (Lucide-style strokes) — no icon font, no emoji
