@@ -190,6 +190,20 @@ input { font: inherit; }
 .leaflet-control-attribution { font-size: 10px; opacity: .8; }
 .leaflet-control-zoom { display: none; }            /* pinch on mobile */
 
+/* imagery switcher pill — sits under the search bar, above the trace HUD */
+.map-fab {
+  position: fixed; z-index: 25;
+  top: calc(76px + env(safe-area-inset-top)); right: var(--s-3);
+  display: flex; align-items: center; gap: 6px;
+  min-height: var(--tap-min); padding: var(--s-2) var(--s-4);
+  background: var(--surface); color: var(--ink-700);
+  border-radius: var(--r-full); box-shadow: var(--shadow-2);
+  font-family: var(--font-head); font-size: var(--text-sm); font-weight: 600;
+  transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.map-fab:active { transform: scale(.95); }
+.map-fab .icon { width: 18px; height: 18px; color: var(--blue-600); }
+
 /* dropped marker pin */
 .home-pin { filter: drop-shadow(0 6px 8px rgba(15,23,42,.45)); }
 .home-pin svg { display: block; }

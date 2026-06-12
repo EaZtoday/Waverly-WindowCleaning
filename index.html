@@ -39,10 +39,17 @@
     <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11V3Z"/><circle cx="8" cy="8" r="1.5"/></symbol>
     <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 5 3.2 8.4 7.5 10 4.3-1.6 7.5-5 7.5-10v-6L12 2.5Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></symbol>
     <symbol id="i-ruler" viewBox="0 0 24 24"><path d="m3 17 14-14 4 4L7 21l-4-4Z"/><path d="m7.5 12.5 1.8 1.8M10.5 9.5l1.8 1.8M13.5 6.5l1.8 1.8"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12.5 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
   </svg>
 
   <!-- ============ MAP (always underneath everything) ============ -->
   <div id="map" aria-hidden="true"></div>
+
+  <!-- imagery source switcher: clouds in one photo? try another -->
+  <button id="btn-layers" class="map-fab" type="button" aria-label="Try a different aerial photo">
+    <svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg>
+    <span>Photo</span>
+  </button>
 
   <!-- ============ FLOATING SEARCH ============ -->
   <header id="topbar">

@@ -56,7 +56,11 @@ can later tell postcard traffic apart in analytics if you add any.
 ## Tech notes
 
 - Plain HTML/CSS/JS, mobile-first — no build step, no framework
-- [Leaflet](https://leafletjs.com) + Esri World Imagery for the always-on satellite map
+- [Leaflet](https://leafletjs.com) for the always-on aerial map, with three
+  free imagery sources — Esri's newest satellite pass, USGS aerial photos
+  (flown on clear days, so usually cloud-free), and Esri's older archive.
+  The floating **Photo** button hops between them when clouds or shadows
+  block a house, and broken sources are skipped automatically.
 - [Nominatim](https://nominatim.org) (OpenStreetMap) for address autocomplete
 - Square footage computed with a geodesic spherical-excess formula (exact, no libraries);
   cut-out shapes subtract from the total
