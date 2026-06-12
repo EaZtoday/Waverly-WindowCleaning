@@ -7,9 +7,9 @@ const CONFIG = {
   business: {
     name: "Alexander's Cleaning Service",
     tagline: "Get your price in 60 seconds. No phone call needed.",
-    phone: "(555) 555-5555",          // shown on the quote + "rather talk?" link
+    phone: "(570) 614-9575",          // shown on the quote + "rather talk?" link
     email: "zarnoffk@gmail.com",      // where booking requests are sent
-    serviceArea: "your neighborhood & nearby",
+    serviceArea: "Lackawanna & Monroe County",
   },
 
   // OPTIONAL: free token from https://account.mapbox.com (sign up, copy your

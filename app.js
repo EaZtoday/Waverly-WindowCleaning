@@ -122,8 +122,8 @@
       iconSize: [44, 52], iconAnchor: [22, 50],
       html:
         '<svg width="44" height="52" viewBox="0 0 44 52">' +
-        '<path d="M22 50C22 50 6 31 6 18a16 16 0 1 1 32 0c0 13-16 32-16 32Z" fill="#2563EB" stroke="#fff" stroke-width="3"/>' +
-        '<path d="M22 10s7 7.6 7 12.4a7 7 0 0 1-14 0C15 17.6 22 10 22 10Z" fill="#fff"/></svg>',
+        '<path d="M22 50C22 50 6 31 6 18a16 16 0 1 1 32 0c0 13-16 32-16 32Z" fill="#2C4652" stroke="#fff" stroke-width="3"/>' +
+        '<path d="M22 10s7 7.6 7 12.4a7 7 0 0 1-14 0C15 17.6 22 10 22 10Z" fill="#6AC3BC"/></svg>',
     });
     homeMarker = L.marker(latlng, { icon, interactive: false }).addTo(map);
   }
@@ -553,7 +553,7 @@
     return Math.max(total, 0);
   }
 
-  const ADD_STYLE = { color: "#2563EB", weight: 3, fillColor: "#3B82F6", fillOpacity: 0.28 };
+  const ADD_STYLE = { color: "#2A7E76", weight: 3, fillColor: "#6AC3BC", fillOpacity: 0.32 };
   const CUT_STYLE = { color: "#DC2626", weight: 3, dashArray: "7 7", fillColor: "#FFFFFF", fillOpacity: 0.55 };
 
   function redrawTrace() {
@@ -569,7 +569,7 @@
         shape.pts.forEach((p) => {
           traceLayers.push(L.circleMarker(p, {
             radius: 9, color: "#fff", weight: 3,
-            fillColor: shape.mode === "cut" ? "#DC2626" : "#2563EB", fillOpacity: 1,
+            fillColor: shape.mode === "cut" ? "#DC2626" : "#2A7E76", fillOpacity: 1,
           }).addTo(map));
         });
       }

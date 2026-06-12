@@ -2,8 +2,9 @@
 
 A small, opinionated system for the instant-quote app. Clean, airy,
 Google-Material-adjacent: rounded corners, soft shadows, generous spacing,
-a confident blue with a fresh "clean water" aqua accent. Every token below
-lives in `:root` in `styles.css` — change it there and the whole app follows.
+in Alexander's brand colors — deep navy and logo teal, sampled from the
+wordmark (navy `#2C4652`, teal `#6AC3BC`). Every token below lives in
+`:root` in `styles.css` — change it there and the whole app follows.
 
 ## Principles
 
@@ -20,14 +21,14 @@ lives in `:root` in `styles.css` — change it there and the whole app follows.
 
 | Token | Hex | Use |
 |---|---|---|
-| `--blue-600` | `#2563EB` | Primary actions, prices, traced areas |
-| `--blue-700` | `#1D4ED8` | Primary pressed/hover |
-| `--blue-500` | `#3B82F6` | Focus rings, polygon fill |
-| `--blue-100` / `--blue-50` | `#DBEAFE` / `#EFF6FF` | Selected tints, icon chips |
-| `--aqua-400` | `#22D3EE` | "Clean water" accent — progress, highlights |
-| `--aqua-600` | `#0891B2` | Accent when used as text (AA-safe) |
-| `--aqua-100` | `#CFFAFE` | Accent tint (savings badge) |
-| `--ink-900` → `--ink-100` | `#0F172A` → `#F1F5F9` | Text & surface neutrals (slate) |
+| `--blue-600` | `#2C4652` | Primary actions, prices — brand navy |
+| `--blue-700` | `#223740` | Primary pressed/hover |
+| `--blue-500` | `#3C7F8A` | Focus rings, mid brand tone |
+| `--blue-100` / `--blue-50` | `#D8EFED` / `#ECF7F6` | Selected tints, icon chips |
+| `--aqua-400` | `#6AC3BC` | Logo teal — accents, progress, pin droplet |
+| `--aqua-600` | `#2A7E76` | Logo teal when used as text (AA-safe) |
+| `--aqua-100` | `#DDF3F1` | Accent tint (savings badge) |
+| `--ink-900` → `--ink-100` | `#1F313B` → `#F1F5F9` | Text & surface neutrals (navy-tinted) |
 | `--green-600` | `#16A34A` | Success, discounts |
 | `--red-600` / `--red-50` | `#DC2626` / `#FEF2F2` | Errors, "cut out" outlines |
 
@@ -37,7 +38,8 @@ components — tokens only.
 
 ## Type scale
 
-Headings **Lexend**, body **Source Sans 3**, system-ui fallback.
+Headings **Poppins** (matches the logo's geometric letterforms), body
+**Source Sans 3**, system-ui fallback.
 
 | Token | Size | Use |
 |---|---|---|
