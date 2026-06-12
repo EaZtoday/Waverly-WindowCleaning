@@ -111,7 +111,12 @@
       state.latlng = { lat: loc.lat(), lng: loc.lng() };
       state.address = place.formatted_address || addressInput.value;
 
-      // Reset quote state for the new address
+      // Reset quote state for the new address. If the customer was mid-trace,
+      // tear the measure tools down too so nothing stale leaks into the quote.
+      if (state.measuring) {
+        clearMeasureOverlays();
+        exitMeasureMode();
+      }
       state.selected = [];
       state.sizes = {};
       state.sizeIndex = 0;
