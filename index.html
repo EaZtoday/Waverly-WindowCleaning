@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Instant Pressure Washing Quote</title>
+  <meta name="description" content="Get an instant pressure washing price for your home in 60 seconds. No phone call needed." />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <main id="app">
+
+    <!-- progress dots -->
+    <nav id="progress" class="hidden" aria-label="Progress">
+      <span class="dot" data-step="address"></span>
+      <span class="dot" data-step="services"></span>
+      <span class="dot" data-step="sizes"></span>
+      <span class="dot" data-step="quote"></span>
+      <span class="dot" data-step="book"></span>
+    </nav>
+
+    <!-- ============ SCREEN: WELCOME ============ -->
+    <section id="screen-welcome" class="screen active">
+      <div class="hero">
+        <div class="hero-emoji">✨🏠✨</div>
+        <h1 id="biz-name">Pressure Washing</h1>
+        <p class="tagline" id="biz-tagline">Get your price in 60 seconds.</p>
+      </div>
+      <button class="btn-big btn-primary" id="btn-start">Get My Price&nbsp;&nbsp;→</button>
+      <p class="small-print">No phone call. No email required to see your price.</p>
+      <a class="phone-link" id="biz-phone-link" href="#">Rather talk to a human? Call us</a>
+    </section>
+
+    <!-- ============ SCREEN: ADDRESS ============ -->
+    <section id="screen-address" class="screen">
+      <h2>Where's the house?</h2>
+      <p class="hint">So we know where to send the crew.</p>
+      <input type="text" id="address-input" class="input-big" autocomplete="street-address"
+             placeholder="123 Main St, Waverly" inputmode="text" enterkeyhint="go" />
+      <p id="address-error" class="error hidden">Hmm, we couldn't find that one. Try adding the city, or just continue.</p>
+      <button class="btn-big btn-primary" id="btn-address-next">Next&nbsp;&nbsp;→</button>
+      <button class="btn-text" id="btn-address-skip">Skip for now</button>
+    </section>
+
+    <!-- ============ SCREEN: SERVICES ============ -->
+    <section id="screen-services" class="screen">
+      <h2>What needs cleaning?</h2>
+      <p class="hint">Tap everything that applies.</p>
+      <div id="service-cards" class="card-grid"></div>
+      <button class="btn-big btn-primary" id="btn-services-next" disabled>Next&nbsp;&nbsp;→</button>
+    </section>
+
+    <!-- ============ SCREEN: SIZES (one per chosen service) ============ -->
+    <section id="screen-sizes" class="screen">
+      <h2 id="size-title">How big is it?</h2>
+      <p class="hint" id="size-hint">Closest guess is fine — we double-check on arrival.</p>
+      <div id="size-options" class="option-list"></div>
+      <button class="btn-text" id="btn-size-measure">📍 Not sure? Outline it on a map</button>
+    </section>
+
+    <!-- ============ SCREEN: QUOTE ============ -->
+    <section id="screen-quote" class="screen">
+      <h2>Your price</h2>
+      <div class="quote-card">
+        <ul id="quote-lines"></ul>
+        <div class="quote-total">
+          <span>Total</span>
+          <span id="quote-total-amount">$0</span>
+        </div>
+      </div>
+      <p class="small-print" id="quote-disclaimer"></p>
+      <button class="btn-big btn-primary" id="btn-book">Book It&nbsp;&nbsp;→</button>
+      <button class="btn-text" id="btn-edit-quote">← Change something</button>
+    </section>
+
+    <!-- ============ SCREEN: BOOK ============ -->
+    <section id="screen-book" class="screen">
+      <h2>Almost done!</h2>
+      <p class="hint">We'll text you to confirm a time.</p>
+      <input type="text" id="book-name" class="input-big" placeholder="Your name" autocomplete="name" />
+      <input type="tel" id="book-phone" class="input-big" placeholder="Phone number" autocomplete="tel" inputmode="tel" />
+      <label class="field-label" for="book-date">What day works best?</label>
+      <input type="date" id="book-date" class="input-big" />
+      <div class="pill-row" id="book-timeofday">
+        <button class="pill" data-tod="Morning">☀️ Morning</button>
+        <button class="pill" data-tod="Afternoon">🌤 Afternoon</button>
+        <button class="pill" data-tod="Either">🤷 Either</button>
+      </div>
+      <p id="book-error" class="error hidden">Please add your name and phone number so we can confirm.</p>
+      <button class="btn-big btn-primary" id="btn-send-booking">Request My Booking&nbsp;&nbsp;✓</button>
+    </section>
+
+    <!-- ============ SCREEN: DONE ============ -->
+    <section id="screen-done" class="screen">
+      <div class="hero">
+        <div class="hero-emoji">🎉</div>
+        <h2>You're booked in!</h2>
+        <p class="hint" id="done-message">We'll text you shortly to confirm your day and time.</p>
+      </div>
+      <div class="quote-card">
+        <ul id="done-lines"></ul>
+        <div class="quote-total">
+          <span>Total</span>
+          <span id="done-total-amount">$0</span>
+        </div>
+      </div>
+      <p class="small-print" id="done-contact"></p>
+    </section>
+
+  </main>
+
+  <!-- ============ MAP MEASURE OVERLAY ============ -->
+  <div id="measure-overlay" class="hidden">
+    <div id="measure-map"></div>
+    <div class="measure-top">
+      <p id="measure-instructions">Tap each <b>corner</b> of the area. Pinch to zoom.</p>
+      <p id="measure-readout">0 corners</p>
+    </div>
+    <div class="measure-buttons">
+      <button class="btn-big btn-ghost" id="btn-measure-undo">↩️ Undo</button>
+      <button class="btn-big btn-ghost" id="btn-measure-cancel">✕ Cancel</button>
+      <button class="btn-big btn-primary" id="btn-measure-done" disabled>✓ Done</button>
+    </div>
+  </div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
