@@ -191,13 +191,39 @@
     else $("address-error").classList.remove("hidden");
   }
 
-  // ---------- confirm home (satellite preview) ----------
-  function esriTiles() {
-    return L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri" }
-    );
+  // ---------- imagery sources (cycle past a cloud) ----------
+  // Different providers flew on different days, so a cloud in one is usually
+  // clear in the next. USGS is US-only aerial, flown in clear weather.
+  const IMAGERY = [
+    {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri" },
+    },
+    {
+      url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery courtesy USGS" },
+    },
+    {
+      url: "https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri Clarity" },
+    },
+  ];
+
+  // Manage the active imagery layer on a map, with a .next() to cycle sources.
+  function imagerySwitcher(map) {
+    let idx = 0;
+    let layer = L.tileLayer(IMAGERY[0].url, IMAGERY[0].opts).addTo(map);
+    return {
+      next() {
+        map.removeLayer(layer);
+        idx = (idx + 1) % IMAGERY.length;
+        layer = L.tileLayer(IMAGERY[idx].url, IMAGERY[idx].opts).addTo(map);
+      },
+    };
   }
+
+  // ---------- confirm home (satellite preview) ----------
+  let confirmImagery = null;
 
   let confirmMap = null;
   let confirmPin = null;
@@ -210,7 +236,7 @@
         touchZoom: false, doubleClickZoom: false, boxZoom: false,
         keyboard: false, attributionControl: true,
       });
-      esriTiles().addTo(confirmMap);
+      confirmImagery = imagerySwitcher(confirmMap);
     }
     if (confirmPin) confirmPin.remove();
     confirmMap.setView(state.latlng, 19);
@@ -224,6 +250,9 @@
   $("btn-confirm-edit").addEventListener("click", () => {
     show("address", "address");
     $("address-input").focus();
+  });
+  $("btn-confirm-layer").addEventListener("click", () => {
+    if (confirmImagery) confirmImagery.next();
   });
 
   $("btn-address-next").addEventListener("click", submitAddress);
@@ -478,6 +507,7 @@
 
   // ---------- map measuring ----------
   let map = null;
+  let measureImagery = null;
   let corners = [];        // L.LatLng[]
   let markers = [];
   let polygon = null;
@@ -591,7 +621,7 @@
 
     if (!map) {
       map = L.map("measure-map", { zoomControl: true, attributionControl: true });
-      esriTiles().addTo(map);
+      measureImagery = imagerySwitcher(map);
       map.on("click", (e) => {
         corners.push(e.latlng);
         const style = SHAPE_STYLE[String(currentSign)];
@@ -623,6 +653,9 @@
     $("measure-overlay").classList.add("hidden");
   }
 
+  $("btn-measure-layer").addEventListener("click", () => {
+    if (measureImagery) measureImagery.next();
+  });
   $("btn-measure-cancel").addEventListener("click", closeMeasure);
   $("btn-measure-undo").addEventListener("click", () => {
     if (corners.length > 0) {
