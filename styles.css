@@ -203,6 +203,15 @@ input { font: inherit; }
 }
 .map-fab:active { transform: scale(.95); }
 .map-fab .icon { width: 18px; height: 18px; color: var(--blue-600); }
+/* attention pulse when entering trace mode — "psst, you can change the photo" */
+.map-fab.nudge { animation: fab-bounce 1s var(--ease-out) 2; }
+.map-fab.nudge::after {
+  content: ""; position: absolute; inset: -3px; border-radius: var(--r-full);
+  border: 3px solid var(--aqua-400);
+  animation: fab-ping 1s var(--ease-out) 2;
+}
+@keyframes fab-bounce { 0%, 100% { transform: scale(1); } 25% { transform: scale(1.08); } 45% { transform: scale(1); } }
+@keyframes fab-ping { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.35); } }
 
 /* dropped marker pin */
 .home-pin { filter: drop-shadow(0 6px 8px rgba(15,23,42,.45)); }

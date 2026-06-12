@@ -597,6 +597,8 @@
     redrawTrace();
   }
 
+  let photoHintShown = false;
+
   function enterTrace() {
     tracing = true;
     shapes = [{ mode: "add", pts: [] }];
@@ -604,6 +606,17 @@
     $("topbar").classList.add("tucked");
     $("trace-hud").classList.remove("hidden");
     map.on("click", onTraceTap);
+
+    // they're looking hard at the photo now — point out it can be swapped
+    if (!photoHintShown) {
+      photoHintShown = true;
+      const fab = $("btn-layers");
+      fab.classList.add("nudge");
+      setTimeout(() => fab.classList.remove("nudge"), 2200);
+      setTimeout(() => {
+        if (tracing) toast("Clouds or blur in the way? Tap “Change photo” for a different picture of your home.");
+      }, 800);
+    }
 
     if (state.latlng) {
       map.setView(state.latlng, Math.max(map.getZoom(), 19));
