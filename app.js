@@ -71,6 +71,15 @@
       opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery © Esri" },
     },
   ];
+  if (CONFIG.mapboxToken) {
+    IMAGERY.unshift({
+      name: "Mapbox satellite photo",
+      url: "https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.jpg90?access_token=" +
+        encodeURIComponent(CONFIG.mapboxToken),
+      opts: { maxNativeZoom: 20, maxZoom: 21, attribution: "© Mapbox © Maxar" },
+    });
+  }
+
   let imageryIdx = 0;
   let baseLayer = null;
   let autoHops = 0;

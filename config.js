@@ -12,6 +12,12 @@ const CONFIG = {
     serviceArea: "Waverly & surrounding areas",
   },
 
+  // OPTIONAL: free token from https://account.mapbox.com (sign up, copy your
+  // "Default public token" — starts with pk.). Adds Mapbox's satellite photos
+  // (often newer/sharper) as the first option in the "Change photo" button.
+  // Leave blank to use only the free no-signup sources.
+  mapboxToken: "",
+
   // OPTIONAL but recommended: free key from https://web3forms.com
   // (enter your email there, paste the key here). Booking requests will
   // then land straight in your inbox. If left blank, the app falls back
