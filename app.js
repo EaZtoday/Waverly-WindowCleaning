@@ -83,9 +83,45 @@
     }
     btn.disabled = false;
     btn.textContent = "Next \u00a0\u2192";
-    if (found) show("services", "services");
+    if (found && state.latlng) showConfirm();      // wow moment: their house from above
+    else if (found) show("services", "services");  // lookup unavailable \u2014 carry on
     else $("address-error").classList.remove("hidden"); // stay; they can retry or Skip
   }
+
+  // ---------- confirm home (satellite preview) ----------
+  function esriTiles() {
+    return L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri" }
+    );
+  }
+
+  let confirmMap = null;
+  let confirmPin = null;
+  function showConfirm() {
+    show("confirm", "address");
+    if (!confirmMap) {
+      // look-only: no panning/zooming, just "yep, that's my roof"
+      confirmMap = L.map("confirm-map", {
+        dragging: false, zoomControl: false, scrollWheelZoom: false,
+        touchZoom: false, doubleClickZoom: false, boxZoom: false,
+        keyboard: false, attributionControl: true,
+      });
+      esriTiles().addTo(confirmMap);
+    }
+    if (confirmPin) confirmPin.remove();
+    confirmMap.setView(state.latlng, 19);
+    confirmPin = L.circleMarker(state.latlng, {
+      radius: 12, color: "#fff", weight: 3, fillColor: "#0b66ff", fillOpacity: 1,
+    }).addTo(confirmMap);
+    setTimeout(() => confirmMap.invalidateSize(), 60);
+  }
+
+  $("btn-confirm-yes").addEventListener("click", () => show("services", "services"));
+  $("btn-confirm-edit").addEventListener("click", () => {
+    show("address", "address");
+    $("address-input").focus();
+  });
 
   $("btn-address-next").addEventListener("click", submitAddress);
   $("address-input").addEventListener("keydown", (e) => {
@@ -141,6 +177,26 @@
 
     const list = $("size-options");
     list.innerHTML = "";
+
+    // satellite measuring up top — the headline option, not a footnote
+    if (svc.mappable) {
+      const mapBtn = document.createElement("button");
+      mapBtn.className = "map-option";
+      mapBtn.type = "button";
+      mapBtn.innerHTML =
+        '<span class="map-option-badge">EXACT PRICE</span>' +
+        '<div class="map-option-title">🛰 Outline it on the map</div>' +
+        '<div class="map-option-sub">See your home from above — trace your ' +
+        svc.name.toLowerCase() + " for a to-the-foot price</div>";
+      mapBtn.addEventListener("click", openMeasure);
+      list.appendChild(mapBtn);
+
+      const divider = document.createElement("p");
+      divider.className = "option-divider";
+      divider.textContent = "— or just take your best guess —";
+      list.appendChild(divider);
+    }
+
     svc.presets.forEach((preset) => {
       const btn = document.createElement("button");
       btn.className = "size-option";
@@ -160,7 +216,6 @@
       list.appendChild(btn);
     });
 
-    $("btn-size-measure").classList.toggle("hidden", !svc.mappable);
     show("sizes", "sizes");
   }
 
@@ -364,12 +419,13 @@
     markers = [];
     if (polygon) { polygon.remove(); polygon = null; }
 
+    const svc = currentService();
+    $("measure-instructions").innerHTML =
+      "Tap each <b>corner</b> of your " + svc.name.toLowerCase() + ". Pinch to zoom.";
+
     if (!map) {
       map = L.map("measure-map", { zoomControl: true, attributionControl: true });
-      L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery © Esri" }
-      ).addTo(map);
+      esriTiles().addTo(map);
       map.on("click", (e) => {
         corners.push(e.latlng);
         const marker = L.circleMarker(e.latlng, {
@@ -400,7 +456,6 @@
     $("measure-overlay").classList.add("hidden");
   }
 
-  $("btn-size-measure").addEventListener("click", openMeasure);
   $("btn-measure-cancel").addEventListener("click", closeMeasure);
   $("btn-measure-undo").addEventListener("click", () => {
     corners.pop();
