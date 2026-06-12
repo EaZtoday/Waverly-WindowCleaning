@@ -16,7 +16,7 @@ const CONFIG = {
   // "Default public token" — starts with pk.). Adds Mapbox's satellite photos
   // (often newer/sharper) as the first option in the "Change photo" button.
   // Leave blank to use only the free no-signup sources.
-  mapboxToken: "",
+  mapboxToken: "pk.eyJ1IjoiY2xlYW5pbmdjcmV3YWNzIiwiYSI6ImNtcWJhY2FkcTBnbDgyc3BvZ3JoZTIzZWcifQ.gicX0weojG9TSP7zx4_GEw",
 
   // OPTIONAL but recommended: free key from https://web3forms.com
   // (enter your email there, paste the key here). Booking requests will
