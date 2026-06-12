@@ -5,11 +5,11 @@
 
 const CONFIG = {
   business: {
-    name: "Waverly Pressure Washing",
+    name: "Alexander's Cleaning Service",
     tagline: "Get your price in 60 seconds. No phone call needed.",
     phone: "(555) 555-5555",          // shown on the quote + "rather talk?" link
     email: "zarnoffk@gmail.com",      // where booking requests are sent
-    serviceArea: "Waverly & surrounding areas",
+    serviceArea: "your neighborhood & nearby",
   },
 
   // OPTIONAL: free token from https://account.mapbox.com (sign up, copy your
