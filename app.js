@@ -49,43 +49,146 @@
     $("address-input").focus();
   });
 
-  // ---------- address (Nominatim, single lookup on submit) ----------
-  async function geocode(query) {
-    const url =
-      "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
-      encodeURIComponent(query);
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) return null;
-    const results = await res.json();
-    return results.length ? results[0] : null;
+  // ---------- address autocomplete (Photon — free, built for typeahead) ----------
+  const addrInput = $("address-input");
+  const suggBox = $("address-suggestions");
+  let acTimer = null;
+  let acController = null;
+  let suggestions = []; // current Photon features shown in the dropdown
+
+  // Turn a Photon feature into { lat, lng, line1, line2, full }.
+  function parsePhoton(feature) {
+    const p = feature.properties || {};
+    const c = (feature.geometry && feature.geometry.coordinates) || [];
+    const line1 =
+      [p.housenumber, p.street].filter(Boolean).join(" ") || p.name || "";
+    const town = p.city || p.town || p.village || p.hamlet || p.county || "";
+    const line2 = [town, p.state, p.postcode].filter(Boolean).join(", ");
+    return {
+      lat: c[1],
+      lng: c[0],
+      line1: line1 || line2,
+      line2: line1 ? line2 : "",
+      full: [line1, line2].filter(Boolean).join(", "),
+    };
   }
 
+  function hideSuggestions() {
+    suggBox.classList.add("hidden");
+    suggBox.innerHTML = "";
+    suggestions = [];
+  }
+
+  function renderSuggestions(items) {
+    suggestions = items;
+    suggBox.innerHTML = "";
+    if (!items.length) {
+      hideSuggestions();
+      return;
+    }
+    items.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.className = "suggestion";
+      li.innerHTML =
+        '<span class="pin">\u{1F4CD}</span><span class="lines">' +
+        '<div class="line1">' + s.line1 + "</div>" +
+        (s.line2 ? '<div class="line2">' + s.line2 + "</div>" : "") +
+        "</span>";
+      li.addEventListener("click", () => chooseSuggestion(i));
+      suggBox.appendChild(li);
+    });
+    suggBox.classList.remove("hidden");
+  }
+
+  function chooseSuggestion(i) {
+    const s = suggestions[i];
+    if (!s || s.lat == null) return;
+    addrInput.value = s.full;
+    state.address = s.full;
+    state.latlng = [s.lat, s.lng];
+    hideSuggestions();
+    showConfirm(); // straight to their house from above
+  }
+
+  async function fetchSuggestions(query) {
+    if (acController) acController.abort();
+    acController = new AbortController();
+    try {
+      const res = await fetch(
+        "https://photon.komoot.io/api/?limit=5&lang=en&q=" + encodeURIComponent(query),
+        { signal: acController.signal }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      // Ignore stale responses if the box was cleared meanwhile.
+      if (addrInput.value.trim().length < 4) return;
+      renderSuggestions((data.features || []).map(parsePhoton).filter((s) => s.lat != null));
+    } catch (_) {
+      /* aborted or offline — leave the dropdown as-is */
+    }
+  }
+
+  addrInput.addEventListener("input", () => {
+    const q = addrInput.value.trim();
+    state.latlng = null; // typing invalidates any earlier pick
+    $("address-error").classList.add("hidden");
+    clearTimeout(acTimer);
+    if (q.length < 4) {
+      hideSuggestions();
+      return;
+    }
+    acTimer = setTimeout(() => fetchSuggestions(q), 300);
+  });
+
+  // Tapping outside the dropdown closes it.
+  document.addEventListener("click", (e) => {
+    if (e.target !== addrInput && !suggBox.contains(e.target)) hideSuggestions();
+  });
+
   async function submitAddress() {
-    const query = $("address-input").value.trim();
+    const query = addrInput.value.trim();
     $("address-error").classList.add("hidden");
     if (!query) {
-      $("address-input").focus();
+      addrInput.focus();
       return;
     }
     state.address = query;
+
+    // Already picked a suggestion? Go straight to the satellite confirm.
+    if (state.latlng) {
+      hideSuggestions();
+      showConfirm();
+      return;
+    }
+
+    // They typed but didn't tap a suggestion — take the best match.
     const btn = $("btn-address-next");
     btn.disabled = true;
     btn.textContent = "Finding your house…";
-    let found = false;
+    let matched = false;
     try {
-      const hit = await geocode(query);
-      if (hit) {
-        state.latlng = [parseFloat(hit.lat), parseFloat(hit.lon)];
-        found = true;
+      if (acController) acController.abort();
+      const res = await fetch(
+        "https://photon.komoot.io/api/?limit=1&lang=en&q=" + encodeURIComponent(query)
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const first = (data.features || []).map(parsePhoton).find((s) => s.lat != null);
+        if (first) {
+          state.latlng = [first.lat, first.lng];
+          state.address = first.full || query;
+          matched = true;
+        }
       }
     } catch (_) {
-      found = true; // offline or rate-limited: not the customer's problem, move on
+      matched = true; // offline or blocked: not the customer's problem, carry on
     }
     btn.disabled = false;
-    btn.textContent = "Next \u00a0\u2192";
-    if (found && state.latlng) showConfirm();      // wow moment: their house from above
-    else if (found) show("services", "services");  // lookup unavailable \u2014 carry on
-    else $("address-error").classList.remove("hidden"); // stay; they can retry or Skip
+    btn.textContent = "Next  →";
+    hideSuggestions();
+    if (matched && state.latlng) showConfirm();
+    else if (matched) show("services", "services");
+    else $("address-error").classList.remove("hidden");
   }
 
   // ---------- confirm home (satellite preview) ----------

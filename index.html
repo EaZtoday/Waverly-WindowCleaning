@@ -40,8 +40,9 @@
     <section id="screen-address" class="screen">
       <h2>Where's the house?</h2>
       <p class="hint">So we know where to send the crew.</p>
-      <input type="text" id="address-input" class="input-big" autocomplete="street-address"
-             placeholder="123 Main St, Waverly" inputmode="text" enterkeyhint="go" />
+      <input type="text" id="address-input" class="input-big" autocomplete="off"
+             placeholder="Start typing your address…" inputmode="text" enterkeyhint="search" />
+      <ul id="address-suggestions" class="suggestions hidden"></ul>
       <p id="address-error" class="error hidden">Hmm, we couldn't find that one. Try adding the city, or just continue.</p>
       <button class="btn-big btn-primary" id="btn-address-next">Next&nbsp;&nbsp;→</button>
       <button class="btn-text" id="btn-address-skip">Skip for now</button>

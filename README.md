@@ -46,6 +46,6 @@ can later tell postcard traffic apart in analytics if you add any.
 
 - Plain HTML/CSS/JS, mobile-first — no build step, no framework
 - [Leaflet](https://leafletjs.com) + Esri World Imagery for the satellite measuring tool
-- [Nominatim](https://nominatim.org) (OpenStreetMap) for one-shot address lookup
+- [Photon](https://photon.komoot.io) (OpenStreetMap) for address autocomplete
 - Square footage computed with a geodesic spherical-excess formula (exact, no libraries)
 - Booking delivery via [Web3Forms](https://web3forms.com) with `mailto:` fallback

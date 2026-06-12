@@ -124,6 +124,34 @@ h2 { font-size: 1.7rem; margin: 12px 0 0; }
 .input-big:focus { outline: none; border-color: var(--blue); }
 .field-label { font-weight: 700; margin-top: 6px; }
 
+/* ---------- address autocomplete ---------- */
+.suggestions {
+  list-style: none;
+  margin: -6px 0 0;
+  padding: 6px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.suggestion:active, .suggestion.active { background: #eaf2ff; }
+.suggestion .pin { font-size: 1.3rem; flex-shrink: 0; }
+.suggestion .lines { min-width: 0; }
+.suggestion .line1 { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion .line2 { color: var(--muted); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggestion .loading-text { color: var(--muted); }
+
 .error { color: var(--red); font-weight: 600; margin: 0; }
 
 .small-print { color: var(--muted); font-size: 0.85rem; text-align: center; margin: 6px 0 0; }
