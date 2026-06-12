@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Instant Pressure Washing Quote</title>
   <meta name="description" content="Get an instant pressure washing price for your home in 60 seconds. No phone call needed." />
-  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <!-- Leaflet from CDN; falls back to the vendored copy if the CDN is blocked. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""
+        onerror="this.onerror=null;this.removeAttribute('integrity');this.href='vendor/leaflet/leaflet.css';" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -139,7 +142,10 @@
     </div>
   </div>
 
-  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- If the CDN was blocked, load the vendored copy synchronously before app.js runs. -->
+  <script>window.L||document.write('<script src="vendor/leaflet/leaflet.js"><\/script>');</script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
