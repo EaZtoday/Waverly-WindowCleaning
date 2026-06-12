@@ -12,6 +12,12 @@ const CONFIG = {
     serviceArea: "Waverly & surrounding areas",
   },
 
+  // REQUIRED: your Google Maps Platform API key. Powers the map, the
+  // address search, and the on-map measuring. See README for the 5-minute
+  // setup (Maps JavaScript API + Places API + Geometry, restricted to your
+  // site). Until this is filled in, the app shows a friendly setup notice.
+  googleMapsApiKey: "",
+
   // OPTIONAL but recommended: free key from https://web3forms.com
   // (enter your email there, paste the key here). Booking requests will
   // then land straight in your inbox. If left blank, the app falls back
