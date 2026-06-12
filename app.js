@@ -52,6 +52,8 @@
   // Several free aerial photo sources of the same places — when clouds block
   // one (satellite passes aren't always clear), the customer hops to the next.
   // USGS aerials are flown on clear days, so they're the cloud-free rescue.
+  // Each layer asks for the sharpest tiles it might have; the fallback layer
+  // substitutes lower-zoom tiles wherever that detail doesn't exist.
   const IMAGERY = [
     {
       name: "Newest satellite photo",
@@ -61,12 +63,12 @@
     {
       name: "USGS aerial photo — usually cloud-free",
       url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
-      opts: { maxNativeZoom: 16, maxZoom: 21, attribution: "Imagery courtesy of the USGS" },
+      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery courtesy of the USGS" },
     },
     {
       name: "Older satellite photo",
       url: "https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      opts: { maxNativeZoom: 18, maxZoom: 21, attribution: "Imagery © Esri" },
+      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery © Esri" },
     },
   ];
   let imageryIdx = 0;
@@ -77,13 +79,14 @@
     imageryIdx = ((idx % IMAGERY.length) + IMAGERY.length) % IMAGERY.length;
     if (baseLayer) baseLayer.remove();
     const src = IMAGERY[imageryIdx];
-    baseLayer = L.tileLayer(src.url, src.opts).addTo(map);
+    baseLayer = L.tileLayer.fallback(src.url, src.opts).addTo(map);
 
-    // if this source has no photos here, hop to the next one (once around, max)
+    // tileerror now only fires when a tile failed at EVERY zoom — if that
+    // keeps happening this source is truly dead here, so hop to the next
     let errs = 0;
     const started = Date.now();
     baseLayer.on("tileerror", () => {
-      if (++errs >= 6 && Date.now() - started < 6000 && autoHops < IMAGERY.length - 1) {
+      if (++errs >= 6 && Date.now() - started < 8000 && autoHops < IMAGERY.length - 1) {
         autoHops++;
         baseLayer.off("tileerror");
         toast("No photo from that source here — trying the next one.");
