@@ -9,6 +9,9 @@
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => "$" + Math.round(n).toLocaleString("en-US");
+  // escape anything from outside (geocoder results, typed text) before innerHTML
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const DESKTOP = () => window.matchMedia("(min-width: 1024px)").matches;
 
@@ -168,7 +171,7 @@
     resultsEl.innerHTML = "";
     if (!items.length) {
       resultsEl.innerHTML =
-        '<li><p class="result-empty">No matches for “' + query +
+        '<li><p class="result-empty">No matches for “' + esc(query) +
         '” — try adding your city or ZIP.</p></li>';
     }
     items.forEach((hit) => {
@@ -179,8 +182,8 @@
       btn.setAttribute("role", "option");
       btn.innerHTML =
         svgIcon("i-pin") +
-        '<span><span class="result-main">' + shortLabel(hit) + "</span>" +
-        '<span class="result-sub">' + restLabel(hit) + "</span></span>";
+        '<span><span class="result-main">' + esc(shortLabel(hit)) + "</span>" +
+        '<span class="result-sub">' + esc(restLabel(hit)) + "</span></span>";
       btn.addEventListener("click", () => {
         chooseAddress([parseFloat(hit.lat), parseFloat(hit.lon)],
           shortLabel(hit) + ", " + restLabel(hit));

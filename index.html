@@ -6,6 +6,24 @@
   <title>Waverly Pressure Washing — Instant Quote</title>
   <meta name="description" content="See your pressure washing price in 60 seconds and book online. No phone call needed." />
   <meta name="theme-color" content="#F8FAFC" />
+  <!-- Allowlist of everything this page may load or contact. If you add a new
+       tile/API provider in config.js, add its domain here too. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self' data:
+      https://server.arcgisonline.com
+      https://basemap.nationalmap.gov
+      https://clarity.maptiles.arcgis.com
+      https://api.mapbox.com;
+    connect-src 'self'
+      https://nominatim.openstreetmap.org
+      https://api.web3forms.com;
+    base-uri 'self';
+    object-src 'none';
+  " />
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="styles.css?v=4" />
 </head>
@@ -246,6 +264,6 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/leaflet/leaflet.tilelayer.fallback.js"></script>
   <script src="config.js?v=6"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
