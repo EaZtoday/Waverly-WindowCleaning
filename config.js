@@ -12,11 +12,11 @@ const CONFIG = {
     serviceArea: "Waverly & surrounding areas",
   },
 
-  // REQUIRED: your Google Maps Platform API key. Powers the map, the
-  // address search, and the on-map measuring. See README for the 5-minute
-  // setup (Maps JavaScript API + Places API + Geometry, restricted to your
-  // site). Until this is filled in, the app shows a friendly setup notice.
-  googleMapsApiKey: "",
+  // OPTIONAL: free token from https://account.mapbox.com (sign up, copy your
+  // "Default public token" — starts with pk.). Adds Mapbox's satellite photos
+  // (often newer/sharper) as the first option in the "Change photo" button.
+  // Leave blank to use only the free no-signup sources.
+  mapboxToken: "pk.eyJ1IjoiY2xlYW5pbmdjcmV3YWNzIiwiYSI6ImNtcWJhY2FkcTBnbDgyc3BvZ3JoZTIzZWcifQ.gicX0weojG9TSP7zx4_GEw",
 
   // OPTIONAL but recommended: free key from https://web3forms.com
   // (enter your email there, paste the key here). Booking requests will
@@ -47,7 +47,6 @@ const CONFIG = {
     {
       id: "driveway",
       name: "Driveway",
-      emoji: "🚗",
       blurb: "Concrete or pavers",
       rate: 0.25,
       min: 99,
@@ -61,7 +60,6 @@ const CONFIG = {
     {
       id: "patio",
       name: "Patio / Pool Deck",
-      emoji: "⛱️",
       blurb: "Concrete, stone or pavers",
       rate: 0.3,
       min: 99,
@@ -75,7 +73,6 @@ const CONFIG = {
     {
       id: "walkway",
       name: "Sidewalk / Walkway",
-      emoji: "🚶",
       blurb: "Paths & front walks",
       rate: 0.3,
       min: 49,
@@ -89,7 +86,6 @@ const CONFIG = {
     {
       id: "house",
       name: "House Wash",
-      emoji: "🏠",
       blurb: "Soft wash siding, all sides",
       mappable: false,
       presets: [
@@ -101,7 +97,6 @@ const CONFIG = {
     {
       id: "deck",
       name: "Wood Deck / Fence",
-      emoji: "🪵",
       blurb: "Gentle wash, no damage",
       rate: 0.4,
       min: 99,

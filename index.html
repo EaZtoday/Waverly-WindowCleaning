@@ -2,69 +2,250 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Instant Pressure Washing Quote</title>
-  <meta name="description" content="Get an instant pressure washing price for your home in 60 seconds." />
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Waverly Pressure Washing — Instant Quote</title>
+  <meta name="description" content="See your pressure washing price in 60 seconds and book online. No phone call needed." />
+  <meta name="theme-color" content="#F8FAFC" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
 
-  <!-- The map fills the whole screen, like Google Maps. -->
-  <div id="map"></div>
+  <!-- ============ SVG ICON SPRITE (Lucide-style, 24×24, stroke 2) ============ -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></symbol>
+    <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 11 6.5 6.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3 13a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4h-2.5M3 17v-4M3 17h2.5m13 0h-13"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></symbol>
+    <symbol id="i-umbrella" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9Z"/><path d="M12 12v6a2 2 0 0 0 4 0"/><path d="M12 3v1"/></symbol>
+    <symbol id="i-path" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5" stroke-dasharray="3.5 3"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></symbol>
+    <symbol id="i-fence" viewBox="0 0 24 24"><path d="M5 21V7l2-3 2 3v14M5 21h4M15 21V7l2-3 2 3v14m-4 0h4M9 11h6M9 17h6"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3v0l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M19 15.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6Z"/></symbol>
+    <symbol id="i-droplet" viewBox="0 0 24 24"><path d="M12 2.7s6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.7 12 2.7Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 7.9 20 19.5M8.1 16.1 20 4.5"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5L19.5 7"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-sunset" viewBox="0 0 24 24"><path d="M12 10V3M8 7l4 3 4-3"/><path d="M4 18a8 8 0 0 1 16 0"/><path d="M2 21h20"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 19.5h19L12 3Z"/><path d="M12 10v4M12 17.5v.1"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3.5 20.5 7 8 19.5 3.5 20.5 4.5 16 17 3.5Z"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11V3Z"/><circle cx="8" cy="8" r="1.5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 5 3.2 8.4 7.5 10 4.3-1.6 7.5-5 7.5-10v-6L12 2.5Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></symbol>
+    <symbol id="i-ruler" viewBox="0 0 24 24"><path d="m3 17 14-14 4 4L7 21l-4-4Z"/><path d="m7.5 12.5 1.8 1.8M10.5 9.5l1.8 1.8M13.5 6.5l1.8 1.8"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12.5 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
+  </svg>
 
-  <!-- Floating search bar (Google Places autocomplete attaches here). -->
-  <div id="search-bar" class="hidden">
-    <span class="search-icon">🔍</span>
-    <input id="address-input" type="text" placeholder="Search your address…"
-           autocomplete="off" inputmode="text" />
-    <button id="search-clear" class="search-clear hidden" aria-label="Clear">✕</button>
+  <!-- ============ MAP (always underneath everything) ============ -->
+  <div id="map" aria-hidden="true"></div>
+
+  <!-- imagery source switcher: clouds in one photo? try another -->
+  <button id="btn-layers" class="map-fab" type="button" aria-label="See a different photo of your home">
+    <svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg>
+    <span>Change photo</span>
+  </button>
+
+  <!-- ============ FLOATING SEARCH ============ -->
+  <header id="topbar">
+    <div id="search-shell">
+      <div id="search-bar">
+        <svg class="icon search-lead" aria-hidden="true"><use href="#i-search"/></svg>
+        <input type="text" id="search-input" placeholder="Type your home address…"
+               autocomplete="street-address" inputmode="text" enterkeyhint="search"
+               aria-label="Your home address" />
+        <div id="search-spinner" class="spinner hidden" role="status" aria-label="Searching"></div>
+        <button id="search-clear" class="icon-btn hidden" type="button" aria-label="Clear address">
+          <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <ul id="search-results" class="hidden" role="listbox" aria-label="Address suggestions"></ul>
+    </div>
+  </header>
+
+  <!-- ============ TRACE MODE HUD ============ -->
+  <div id="trace-hud" class="hidden">
+    <div class="trace-top">
+      <p id="trace-tip" aria-live="polite">Tap each corner of your driveway</p>
+      <div id="trace-readout" class="hidden" aria-live="polite">
+        <strong id="trace-sqft">0</strong><span> sq ft</span>
+        <em id="trace-price"></em>
+      </div>
+    </div>
+    <button id="trace-cancel" class="icon-btn trace-x" type="button" aria-label="Cancel tracing">
+      <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+    </button>
+    <div class="trace-dock">
+      <div class="trace-tools">
+        <button id="trace-undo" class="tool-btn" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg><span>Undo</span>
+        </button>
+        <button id="trace-add" class="tool-btn" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>Add a section</span>
+        </button>
+        <button id="trace-cut" class="tool-btn" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg><span>Cut a hole</span>
+        </button>
+      </div>
+      <button id="trace-done" class="btn btn-primary" type="button" disabled>
+        <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+        <span>Use this size</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Measuring toolbar (only while tracing on the map). -->
-  <div id="measure-top" class="measure-top hidden">
-    <p id="measure-instructions">Tap each <b>corner</b> on the map.</p>
-    <p id="measure-readout">0 sq ft</p>
-  </div>
+  <!-- ============ BOTTOM SHEET ============ -->
+  <section id="sheet" role="dialog" aria-label="Get your quote">
+    <div id="sheet-grip">
+      <div class="handle" aria-hidden="true"></div>
+      <div class="sheet-header">
+        <button id="sheet-back" class="icon-btn hidden" type="button" aria-label="Go back">
+          <svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+        </button>
+        <div class="sheet-titles">
+          <h1 id="sheet-title">Waverly Pressure Washing</h1>
+          <p id="sheet-sub">Your price in about 60 seconds</p>
+        </div>
+        <nav id="dots" class="hidden" aria-label="Progress">
+          <span class="dot" data-dot="0"></span><span class="dot" data-dot="1"></span>
+          <span class="dot" data-dot="2"></span><span class="dot" data-dot="3"></span>
+        </nav>
+      </div>
+    </div>
 
-  <!-- Bottom sheet — the quoting controls ride here, over the map. -->
-  <section id="sheet" class="sheet hidden">
-    <div class="sheet-handle"></div>
-    <div id="sheet-body"></div>
+    <div id="sheet-body">
+
+      <!-- STEP: WELCOME -->
+      <div class="step active" id="step-welcome">
+        <div class="brand-card">
+          <div class="brand-mark" aria-hidden="true">
+            <svg class="icon" ><use href="#i-droplet"/></svg>
+          </div>
+          <div class="brand-copy">
+            <h2 id="biz-name">Waverly Pressure Washing</h2>
+            <p id="biz-area">Serving Waverly &amp; surrounding areas</p>
+          </div>
+        </div>
+        <ul class="trust-row">
+          <li><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>Price in 60 seconds</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>Local &amp; insured</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg>No phone call needed</li>
+        </ul>
+        <button class="btn btn-primary" id="btn-find-home" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-pin"/></svg>
+          <span>Find my home</span>
+        </button>
+        <button class="btn btn-ghost" id="btn-skip-address" type="button">Skip — show me prices first</button>
+      </div>
+
+      <!-- STEP: SERVICES -->
+      <div class="step" id="step-services">
+        <div id="service-cards" class="svc-grid"></div>
+        <div class="sticky-cta">
+          <button class="btn btn-primary" id="btn-services-next" type="button" disabled>
+            <span id="services-next-label">Pick at least one</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP: SIZE (loops per chosen service) -->
+      <div class="step" id="step-size">
+        <div id="size-options" class="preset-list"></div>
+        <button class="btn btn-secondary" id="btn-trace" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-ruler"/></svg>
+          <span>Trace it on the photo — exact size</span>
+        </button>
+        <p class="reassure">Closest guess is fine — we double-check on arrival.</p>
+      </div>
+
+      <!-- STEP: QUOTE -->
+      <div class="step" id="step-quote">
+        <div class="quote-card">
+          <ul id="quote-lines"></ul>
+          <div class="quote-total">
+            <span>Your total</span>
+            <span id="quote-total" class="money">$0</span>
+          </div>
+          <p id="quote-savings" class="savings hidden"></p>
+        </div>
+        <p class="reassure" id="quote-disclaimer"></p>
+        <div class="sticky-cta">
+          <button class="btn btn-primary" id="btn-to-booking" type="button">
+            <span>Book it — pick a day</span>
+          </button>
+          <button class="btn btn-ghost" id="btn-edit-quote" type="button">Change something</button>
+        </div>
+      </div>
+
+      <!-- STEP: BOOK -->
+      <div class="step" id="step-book">
+        <label class="field">
+          <span class="field-label">Your name</span>
+          <input type="text" id="book-name" autocomplete="name" placeholder="Jane Smith" />
+        </label>
+        <label class="field">
+          <span class="field-label">Mobile number <em>— we text to confirm</em></span>
+          <input type="tel" id="book-phone" autocomplete="tel" inputmode="tel" placeholder="(555) 555-1234" />
+        </label>
+        <div class="field">
+          <span class="field-label">What day works best?</span>
+          <div id="day-chips" class="chip-row" role="group" aria-label="Preferred day"></div>
+        </div>
+        <div class="field">
+          <span class="field-label">Morning or afternoon?</span>
+          <div id="tod-chips" class="chip-row" role="group" aria-label="Time of day">
+            <button class="chip" type="button" data-tod="Morning">
+              <svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>Morning</button>
+            <button class="chip" type="button" data-tod="Afternoon">
+              <svg class="icon" aria-hidden="true"><use href="#i-sunset"/></svg>Afternoon</button>
+            <button class="chip selected" type="button" data-tod="Either">Either is fine</button>
+          </div>
+        </div>
+        <p id="book-error" class="error hidden" role="alert"></p>
+        <div class="sticky-cta">
+          <button class="btn btn-primary" id="btn-send" type="button">
+            <span id="send-label">Request my booking</span>
+            <span id="send-spinner" class="spinner light hidden" aria-hidden="true"></span>
+          </button>
+          <p class="reassure">No payment now. We text you to lock in the time.</p>
+        </div>
+      </div>
+
+      <!-- STEP: DONE -->
+      <div class="step" id="step-done">
+        <div class="done-hero">
+          <div class="done-check" aria-hidden="true">
+            <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27.5l7 7 15-16"/></svg>
+          </div>
+          <h2>You're on the books!</h2>
+          <p id="done-message">We'll text you shortly to confirm your day and time.</p>
+        </div>
+        <div class="quote-card">
+          <ul id="done-lines"></ul>
+          <div class="quote-total">
+            <span>Estimated total</span>
+            <span id="done-total" class="money">$0</span>
+          </div>
+        </div>
+        <p class="reassure" id="done-contact"></p>
+      </div>
+
+    </div>
   </section>
 
-  <!-- Measuring controls (bottom, over the map). -->
-  <div id="measure-controls" class="measure-controls hidden">
-    <div class="measure-row" id="measure-shape-row">
-      <button class="m-btn m-ghost" id="btn-add">➕ Add section</button>
-      <button class="m-btn m-cut" id="btn-cut">➖ Cut out pool</button>
-    </div>
-    <div class="measure-row">
-      <button class="m-btn m-ghost" id="btn-undo">↩︎ Undo</button>
-      <button class="m-btn m-ghost" id="btn-cancel">✕ Cancel</button>
-      <button class="m-btn m-primary" id="btn-done" disabled>✓ Done</button>
-    </div>
-  </div>
+  <!-- toast for gentle errors -->
+  <div id="toast" class="hidden" role="status" aria-live="polite"></div>
 
-  <!-- Full-screen setup notice if the Google key is missing. -->
-  <div id="nokey" class="overlay hidden">
-    <div class="overlay-card">
-      <div class="overlay-emoji">🔑</div>
-      <h2>One quick setup step</h2>
-      <p>This quote tool runs on Google Maps. Add your free Google Maps API
-         key in <code>config.js</code> and refresh — the README walks you
-         through it in about 5 minutes.</p>
-    </div>
-  </div>
+  <noscript><p style="padding:24px;font-family:sans-serif">This quote tool needs JavaScript. Or just call us!</p></noscript>
 
-  <!-- Loading veil while Google Maps boots. -->
-  <div id="booting" class="overlay">
-    <div class="overlay-card">
-      <div class="spinner"></div>
-      <p id="biz-booting">Loading…</p>
-    </div>
-  </div>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/leaflet/leaflet.tilelayer.fallback.js"></script>
+  <script src="config.js?v=6"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

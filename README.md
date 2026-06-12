@@ -1,13 +1,18 @@
-# Instant Pressure Washing Quote Tool
+# Waverly Pressure Washing — Instant Quote
 
-A customer-facing self-quoting page. A customer scans the QR code on your
-postcard, lands here on their phone, and in about 60 seconds:
+A customer-facing self-quoting page that feels like Google Maps. A customer
+scans the QR code on your postcard, lands here on their phone, and in about
+60 seconds:
 
-1. **Searches their address** on a full-screen map — it flies to their house
-2. **Taps what needs cleaning** — driveway, patio, house wash, deck…
-3. **Taps a size** ("2-car driveway") — or traces the area right on the
-   satellite view of their own house for an exact square footage
-4. **Sees their price instantly** — with an automatic bundle discount
+1. **Types their address** in the floating search bar — autocomplete
+   suggests it and the satellite map flies to their house
+2. **Taps what needs cleaning** in the bottom sheet — driveway, patio,
+   house wash, deck…
+3. **Taps a size** ("2-car driveway") — or **traces the actual surface**
+   on the satellite photo, corner by corner, with live square footage.
+   They can add extra sections and cut out holes (like a pool) too.
+4. **Watches their price count up** — line items plus an automatic
+   bundle discount
 5. **Requests a booking** — name, phone, preferred day → lands in your inbox
 
 No app install, no account, no backend, no monthly fees.
@@ -20,22 +25,11 @@ Open **`config.js`**. Everything you'd ever want to change is in that one
 file, with comments: business name, phone, email, per-square-foot rates,
 size presets, minimum job, bundle discount. Edit, save, done.
 
-## Add your Google Maps key (required, ~5 minutes, free tier covers most use)
+## Change the look
 
-The map, address search, and on-map measuring all run on Google Maps. Until
-you add a key, the app shows a friendly setup notice instead of the map.
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/),
-   create (or pick) a project, and enable **Maps JavaScript API**,
-   **Places API**, and the **Geometry** library (it ships with Maps
-   JavaScript — no separate enable needed).
-2. Create an **API key** under *APIs & Services → Credentials*.
-3. Paste it into `googleMapsApiKey: ""` in `config.js`.
-4. **Restrict the key** so it can't be abused: set an
-   *Application restriction → HTTP referrers* limited to your site
-   (e.g. `https://<your-username>.github.io/*`), and an *API restriction*
-   limited to Maps JavaScript API + Places API. Add billing to the project
-   (Google requires it), but the free monthly credit covers typical traffic.
+Open **`DESIGN.md`** for the full design system. Every color, font size,
+radius, and shadow is a token at the top of `styles.css` — change it once,
+it changes everywhere.
 
 ## Get booking requests in your inbox (5 minutes, free)
 
@@ -62,9 +56,15 @@ can later tell postcard traffic apart in analytics if you add any.
 ## Tech notes
 
 - Plain HTML/CSS/JS, mobile-first — no build step, no framework
-- [Google Maps JavaScript API](https://developers.google.com/maps/documentation/javascript)
-  for the full-screen hybrid map, with the **Places** library for address
-  autocomplete and the **Geometry** library for on-map area measurement
-- Square footage computed with `geometry.spherical.computeArea`
-  (geodesic, in m²) converted to sq ft
+- [Leaflet](https://leafletjs.com) for the always-on aerial map, with three
+  free imagery sources — Esri's newest satellite pass, USGS aerial photos
+  (flown on clear days, so usually cloud-free), and Esri's older archive.
+  The floating **Photo** button hops between them when clouds or shadows
+  block a house, and broken sources are skipped automatically.
+- [Nominatim](https://nominatim.org) (OpenStreetMap) for address autocomplete
+- Square footage computed with a geodesic spherical-excess formula (exact, no libraries);
+  cut-out shapes subtract from the total
+- Draggable bottom sheet with three snap points (peek / half / full); docks
+  as a left panel on desktop
 - Booking delivery via [Web3Forms](https://web3forms.com) with `mailto:` fallback
+- Inline SVG icon sprite (Lucide-style strokes) — no icon font, no emoji
