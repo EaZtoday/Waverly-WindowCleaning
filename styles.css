@@ -4,21 +4,22 @@
             5) search  6) sheet  7–11) steps  12) trace  13) desktop
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap');
 
 /* ---------- 1. DESIGN TOKENS ---------- */
 :root {
-  /* color — confident blue primary, "clean water" aqua accent */
-  --blue-50:  #EFF6FF;
-  --blue-100: #DBEAFE;
-  --blue-500: #3B82F6;
-  --blue-600: #2563EB;   /* primary */
-  --blue-700: #1D4ED8;   /* primary pressed */
-  --aqua-100: #CFFAFE;
-  --aqua-400: #22D3EE;   /* clean-water accent */
-  --aqua-600: #0891B2;   /* accent, text-safe contrast */
-  --ink-900:  #0F172A;   /* headings */
-  --ink-700:  #334155;   /* body */
+  /* color — Alexander's brand: deep navy primary, logo-teal accent
+     (sampled from the wordmark: navy #2C4652, teal #6AC3BC) */
+  --blue-50:  #ECF7F6;   /* teal-tinted surface */
+  --blue-100: #D8EFED;   /* selected tint */
+  --blue-500: #3C7F8A;   /* focus rings, mid brand tone */
+  --blue-600: #2C4652;   /* primary — brand navy */
+  --blue-700: #223740;   /* primary pressed */
+  --aqua-100: #DDF3F1;
+  --aqua-400: #6AC3BC;   /* logo teal accent */
+  --aqua-600: #2A7E76;   /* logo teal, text-safe contrast */
+  --ink-900:  #1F313B;   /* headings — near-brand navy */
+  --ink-700:  #3D5460;   /* body */
   --ink-500:  #64748B;   /* secondary text */
   --ink-300:  #CBD5E1;   /* borders */
   --ink-100:  #F1F5F9;   /* tinted surfaces */
@@ -29,7 +30,7 @@
   --red-50:   #FEF2F2;
 
   /* type scale (mobile-first) */
-  --font-head: 'Lexend', system-ui, -apple-system, sans-serif;
+  --font-head: 'Poppins', system-ui, -apple-system, sans-serif;
   --font-body: 'Source Sans 3', system-ui, -apple-system, sans-serif;
   --text-xs: 0.75rem;    /* 12 — fine print only */
   --text-sm: 0.8125rem;  /* 13 — captions, chips */
