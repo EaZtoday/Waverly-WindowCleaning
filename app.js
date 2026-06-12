@@ -191,33 +191,40 @@
     else $("address-error").classList.remove("hidden");
   }
 
-  // ---------- imagery sources (cycle past a cloud) ----------
-  // Different providers flew on different days, so a cloud in one is usually
-  // clear in the next. USGS is US-only aerial, flown in clear weather.
+  // ---------- imagery sources (one labeled toggle) ----------
+  // Two views: sharp satellite (Esri, global) and a cloud-free aerial (USGS,
+  // US, flown in clear weather). The flyovers are different days, so a cloud
+  // in one is almost always clear in the other.
   const IMAGERY = [
     {
       url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri" },
+      // label shown on the button = what tapping switches you TO
+      toLabel: "\u2601\ufe0f Cloudy? Tap for a clear aerial view",
     },
     {
       url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
       opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery courtesy USGS" },
-    },
-    {
-      url: "https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri Clarity" },
+      toLabel: "\ud83d\udef0 Switch back to satellite view",
     },
   ];
 
-  // Manage the active imagery layer on a map, with a .next() to cycle sources.
-  function imagerySwitcher(map) {
+  // Manage the active imagery layer on a map. .toggle() flips to the other
+  // view; the button label always names the view a tap will switch you to.
+  function imagerySwitcher(map, buttonEl) {
     let idx = 0;
     let layer = L.tileLayer(IMAGERY[0].url, IMAGERY[0].opts).addTo(map);
+    function syncLabel() {
+      // button advertises the OTHER view (the one you'd switch to)
+      if (buttonEl) buttonEl.textContent = IMAGERY[idx].toLabel;
+    }
+    syncLabel();
     return {
-      next() {
+      toggle() {
         map.removeLayer(layer);
         idx = (idx + 1) % IMAGERY.length;
         layer = L.tileLayer(IMAGERY[idx].url, IMAGERY[idx].opts).addTo(map);
+        syncLabel();
       },
     };
   }
@@ -236,7 +243,7 @@
         touchZoom: false, doubleClickZoom: false, boxZoom: false,
         keyboard: false, attributionControl: true,
       });
-      confirmImagery = imagerySwitcher(confirmMap);
+      confirmImagery = imagerySwitcher(confirmMap, $("btn-confirm-layer"));
     }
     if (confirmPin) confirmPin.remove();
     confirmMap.setView(state.latlng, 19);
@@ -252,7 +259,7 @@
     $("address-input").focus();
   });
   $("btn-confirm-layer").addEventListener("click", () => {
-    if (confirmImagery) confirmImagery.next();
+    if (confirmImagery) confirmImagery.toggle();
   });
 
   $("btn-address-next").addEventListener("click", submitAddress);
@@ -621,7 +628,7 @@
 
     if (!map) {
       map = L.map("measure-map", { zoomControl: true, attributionControl: true });
-      measureImagery = imagerySwitcher(map);
+      measureImagery = imagerySwitcher(map, $("btn-measure-layer"));
       map.on("click", (e) => {
         corners.push(e.latlng);
         const style = SHAPE_STYLE[String(currentSign)];
@@ -654,7 +661,7 @@
   }
 
   $("btn-measure-layer").addEventListener("click", () => {
-    if (measureImagery) measureImagery.next();
+    if (measureImagery) measureImagery.toggle();
   });
   $("btn-measure-cancel").addEventListener("click", closeMeasure);
   $("btn-measure-undo").addEventListener("click", () => {
