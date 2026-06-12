@@ -1,387 +1,190 @@
-/* Customer self-quote wizard. All logic client-side; config lives in config.js. */
+/* ============================================================
+   app.js — Google-Maps-style instant pressure-washing quote tool
+   Powered by Google Maps JavaScript API (Places + Geometry).
+   All logic client-side; config lives in config.js.
+   ============================================================ */
 
 (function () {
   "use strict";
 
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) =>
+    (n < 0 ? "−$" : "$") + Math.round(Math.abs(n)).toLocaleString("en-US");
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   // ---------- state ----------
   const state = {
     address: "",
-    latlng: null,            // [lat, lng] from geocoder, used to center the map
-    selected: [],            // service ids in the order chosen
-    sizes: {},               // serviceId -> { label, sqft?, price? }
-    sizeIndex: 0,            // which selected service we're sizing right now
-    timeOfDay: "Either",
+    latlng: null,           // { lat, lng }
+    selected: [],           // service ids in the order chosen
+    sizes: {},              // serviceId -> { label, sqft?, price }
+    sizeIndex: 0,           // which selected service we're sizing right now
+    timeOfDay: "Either",    // booking preference
+
+    // measure state
+    measuring: false,
+    measureServiceId: null,
+    shapes: [],             // [{path: LatLng[], sign: +1|-1, polygon}]
+    currentPath: [],        // LatLng[] in-progress vertices
+    currentSign: 1,
+    currentMarkers: [],     // vertex markers for the in-progress path
+    currentPolygon: null,   // Polygon for in-progress shape
   };
 
-  const $ = (id) => document.getElementById(id);
-  const fmt = (n) => "$" + Math.round(n).toLocaleString("en-US");
+  // ---------- DOM handles ----------
+  const bootEl       = $("booting");
+  const nokeyEl      = $("nokey");
+  const searchBarEl  = $("search-bar");
+  const addressInput = $("address-input");
+  const searchClearEl       = $("search-clear");
+  const measureTopEl        = $("measure-top");
+  const measureInstructionsEl = $("measure-instructions");
+  const measureReadoutEl    = $("measure-readout");
+  const sheetEl      = $("sheet");
+  const sheetBodyEl  = $("sheet-body");
+  const measureControlsEl  = $("measure-controls");
+  const btnAdd    = $("btn-add");
+  const btnCut    = $("btn-cut");
+  const btnUndo   = $("btn-undo");
+  const btnCancel = $("btn-cancel");
+  const btnDone   = $("btn-done");
 
-  // ---------- business info ----------
-  $("biz-name").textContent = CONFIG.business.name;
-  $("biz-tagline").textContent = CONFIG.business.tagline;
-  const phoneLink = $("biz-phone-link");
-  phoneLink.href = "tel:" + CONFIG.business.phone.replace(/[^+\d]/g, "");
-  phoneLink.textContent = "Rather talk to a human? Call " + CONFIG.business.phone;
-  $("quote-disclaimer").textContent = CONFIG.disclaimer;
+  let map = null;
+  let addressMarker = null;
+  let mapClickListener = null;
 
-  // ---------- screen routing ----------
-  const STEP_ORDER = ["address", "services", "sizes", "quote", "book"];
-  function show(screen, progressStep) {
-    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
-    $("screen-" + screen).classList.add("active");
-    const progress = $("progress");
-    if (!progressStep) {
-      progress.classList.add("hidden");
-    } else {
-      progress.classList.remove("hidden");
-      const idx = STEP_ORDER.indexOf(progressStep);
-      progress.querySelectorAll(".dot").forEach((dot, i) => {
-        dot.classList.toggle("current", i === idx);
-        dot.classList.toggle("done", i < idx);
-      });
-    }
-    window.scrollTo(0, 0);
+  // ---------- boot ----------
+  const bizBootEl = $("biz-booting");
+  if (bizBootEl) bizBootEl.textContent = CONFIG.business.name;
+
+  if (!CONFIG.googleMapsApiKey) {
+    bootEl.classList.add("hidden");
+    nokeyEl.classList.remove("hidden");
+  } else {
+    const script = document.createElement("script");
+    script.src =
+      "https://maps.googleapis.com/maps/api/js" +
+      "?key=" + encodeURIComponent(CONFIG.googleMapsApiKey) +
+      "&libraries=places,geometry" +
+      "&loading=async" +
+      "&callback=initApp";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
   }
 
-  // ---------- welcome ----------
-  $("btn-start").addEventListener("click", () => {
-    show("address", "address");
-    $("address-input").focus();
-  });
+  // ---------- initApp (Google Maps callback) ----------
+  window.initApp = function () {
+    bootEl.classList.add("hidden");
+    searchBarEl.classList.remove("hidden");
 
-  // ---------- address autocomplete (Photon — free, built for typeahead) ----------
-  const addrInput = $("address-input");
-  const suggBox = $("address-suggestions");
-  let acTimer = null;
-  let acController = null;
-  let suggestions = []; // current Photon features shown in the dropdown
-
-  // Turn a Photon feature into { lat, lng, line1, line2, full }.
-  function parsePhoton(feature) {
-    const p = feature.properties || {};
-    const c = (feature.geometry && feature.geometry.coordinates) || [];
-    const line1 =
-      [p.housenumber, p.street].filter(Boolean).join(" ") || p.name || "";
-    const town = p.city || p.town || p.village || p.hamlet || p.county || "";
-    const line2 = [town, p.state, p.postcode].filter(Boolean).join(", ");
-    return {
-      lat: c[1],
-      lng: c[0],
-      line1: line1 || line2,
-      line2: line1 ? line2 : "",
-      full: [line1, line2].filter(Boolean).join(", "),
-    };
-  }
-
-  function hideSuggestions() {
-    suggBox.classList.add("hidden");
-    suggBox.innerHTML = "";
-    suggestions = [];
-  }
-
-  function renderSuggestions(items) {
-    suggestions = items;
-    suggBox.innerHTML = "";
-    if (!items.length) {
-      hideSuggestions();
-      return;
-    }
-    items.forEach((s, i) => {
-      const li = document.createElement("li");
-      li.className = "suggestion";
-      li.innerHTML =
-        '<span class="pin">\u{1F4CD}</span><span class="lines">' +
-        '<div class="line1">' + s.line1 + "</div>" +
-        (s.line2 ? '<div class="line2">' + s.line2 + "</div>" : "") +
-        "</span>";
-      li.addEventListener("click", () => chooseSuggestion(i));
-      suggBox.appendChild(li);
+    map = new google.maps.Map($("map"), {
+      center: { lat: 39.5, lng: -98.35 },
+      zoom: 4,
+      mapTypeId: "hybrid",
+      disableDefaultUI: true,
+      zoomControl: true,
+      gestureHandling: "greedy",
+      clickableIcons: false,
+      tilt: 0,
     });
-    suggBox.classList.remove("hidden");
-  }
 
-  function chooseSuggestion(i) {
-    const s = suggestions[i];
-    if (!s || s.lat == null) return;
-    addrInput.value = s.full;
-    state.address = s.full;
-    state.latlng = [s.lat, s.lng];
-    hideSuggestions();
-    showConfirm(); // straight to their house from above
-  }
-
-  async function fetchSuggestions(query) {
-    if (acController) acController.abort();
-    acController = new AbortController();
-    try {
-      const res = await fetch(
-        "https://photon.komoot.io/api/?limit=5&lang=en&q=" + encodeURIComponent(query),
-        { signal: acController.signal }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      // Ignore stale responses if the box was cleared meanwhile.
-      if (addrInput.value.trim().length < 4) return;
-      renderSuggestions((data.features || []).map(parsePhoton).filter((s) => s.lat != null));
-    } catch (_) {
-      /* aborted or offline — leave the dropdown as-is */
-    }
-  }
-
-  addrInput.addEventListener("input", () => {
-    const q = addrInput.value.trim();
-    state.latlng = null; // typing invalidates any earlier pick
-    $("address-error").classList.add("hidden");
-    clearTimeout(acTimer);
-    if (q.length < 4) {
-      hideSuggestions();
-      return;
-    }
-    acTimer = setTimeout(() => fetchSuggestions(q), 300);
-  });
-
-  // Tapping outside the dropdown closes it.
-  document.addEventListener("click", (e) => {
-    if (e.target !== addrInput && !suggBox.contains(e.target)) hideSuggestions();
-  });
-
-  async function submitAddress() {
-    const query = addrInput.value.trim();
-    $("address-error").classList.add("hidden");
-    if (!query) {
-      addrInput.focus();
-      return;
-    }
-    state.address = query;
-
-    // Already picked a suggestion? Go straight to the satellite confirm.
-    if (state.latlng) {
-      hideSuggestions();
-      showConfirm();
-      return;
-    }
-
-    // They typed but didn't tap a suggestion — take the best match.
-    const btn = $("btn-address-next");
-    btn.disabled = true;
-    btn.textContent = "Finding your house…";
-    let matched = false;
-    try {
-      if (acController) acController.abort();
-      const res = await fetch(
-        "https://photon.komoot.io/api/?limit=1&lang=en&q=" + encodeURIComponent(query)
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const first = (data.features || []).map(parsePhoton).find((s) => s.lat != null);
-        if (first) {
-          state.latlng = [first.lat, first.lng];
-          state.address = first.full || query;
-          matched = true;
-        }
-      }
-    } catch (_) {
-      matched = true; // offline or blocked: not the customer's problem, carry on
-    }
-    btn.disabled = false;
-    btn.textContent = "Next  →";
-    hideSuggestions();
-    if (matched && state.latlng) showConfirm();
-    else if (matched) show("services", "services");
-    else $("address-error").classList.remove("hidden");
-  }
-
-  // ---------- imagery sources (one labeled toggle) ----------
-  // Two views: sharp satellite (Esri, global) and a cloud-free aerial (USGS,
-  // US, flown in clear weather). The flyovers are different days, so a cloud
-  // in one is almost always clear in the other.
-  const IMAGERY = [
-    {
-      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery \u00a9 Esri" },
-      // label shown on the button = what tapping switches you TO
-      toLabel: "\u2601\ufe0f Cloudy? Tap for a clear aerial view",
-    },
-    {
-      url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
-      opts: { maxNativeZoom: 19, maxZoom: 21, attribution: "Imagery courtesy USGS" },
-      toLabel: "\ud83d\udef0 Switch back to satellite view",
-    },
-  ];
-
-  // Manage the active imagery layer on a map. .toggle() flips to the other
-  // view; the button label always names the view a tap will switch you to.
-  function imagerySwitcher(map, buttonEl) {
-    let idx = 0;
-    let layer = L.tileLayer(IMAGERY[0].url, IMAGERY[0].opts).addTo(map);
-    function syncLabel() {
-      // button advertises the OTHER view (the one you'd switch to)
-      if (buttonEl) buttonEl.textContent = IMAGERY[idx].toLabel;
-    }
-    syncLabel();
-    return {
-      toggle() {
-        map.removeLayer(layer);
-        idx = (idx + 1) % IMAGERY.length;
-        layer = L.tileLayer(IMAGERY[idx].url, IMAGERY[idx].opts).addTo(map);
-        syncLabel();
-      },
-    };
-  }
-
-  // ---------- confirm home (satellite preview) ----------
-  let confirmImagery = null;
-
-  let confirmMap = null;
-  let confirmPin = null;
-  function showConfirm() {
-    show("confirm", "address");
-    if (!confirmMap) {
-      // look-only: no panning/zooming, just "yep, that's my roof"
-      confirmMap = L.map("confirm-map", {
-        dragging: false, zoomControl: false, scrollWheelZoom: false,
-        touchZoom: false, doubleClickZoom: false, boxZoom: false,
-        keyboard: false, attributionControl: true,
-      });
-      confirmImagery = imagerySwitcher(confirmMap, $("btn-confirm-layer"));
-    }
-    if (confirmPin) confirmPin.remove();
-    confirmMap.setView(state.latlng, 19);
-    confirmPin = L.circleMarker(state.latlng, {
-      radius: 12, color: "#fff", weight: 3, fillColor: "#0b66ff", fillOpacity: 1,
-    }).addTo(confirmMap);
-    setTimeout(() => confirmMap.invalidateSize(), 60);
-  }
-
-  $("btn-confirm-yes").addEventListener("click", () => show("services", "services"));
-  $("btn-confirm-edit").addEventListener("click", () => {
-    show("address", "address");
-    $("address-input").focus();
-  });
-  $("btn-confirm-layer").addEventListener("click", () => {
-    if (confirmImagery) confirmImagery.toggle();
-  });
-
-  $("btn-address-next").addEventListener("click", submitAddress);
-  $("address-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submitAddress();
-  });
-  $("btn-address-skip").addEventListener("click", () => {
-    state.address = $("address-input").value.trim();
-    show("services", "services");
-  });
-
-  // ---------- services ----------
-  const cardsEl = $("service-cards");
-  CONFIG.services.forEach((svc) => {
-    const card = document.createElement("button");
-    card.className = "svc-card";
-    card.type = "button";
-    card.innerHTML =
-      '<div class="svc-emoji">' + svc.emoji + "</div>" +
-      '<div class="svc-name">' + svc.name + "</div>" +
-      '<div class="svc-blurb">' + svc.blurb + "</div>";
-    card.addEventListener("click", () => {
-      const i = state.selected.indexOf(svc.id);
-      if (i === -1) state.selected.push(svc.id);
-      else state.selected.splice(i, 1);
-      card.classList.toggle("selected", i === -1);
-      $("btn-services-next").disabled = state.selected.length === 0;
+    // Places Autocomplete
+    const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+      fields: ["geometry", "formatted_address"],
+      types: ["address"],
     });
-    cardsEl.appendChild(card);
-  });
 
-  $("btn-services-next").addEventListener("click", () => {
-    state.sizeIndex = 0;
-    showSizeScreen();
-  });
+    autocomplete.addListener("place_changed", function () {
+      const place = autocomplete.getPlace();
+      if (!place.geometry || !place.geometry.location) return;
 
-  // ---------- sizes (loops through each selected service) ----------
-  function currentService() {
-    return CONFIG.services.find((s) => s.id === state.selected[state.sizeIndex]);
+      const loc = place.geometry.location;
+      state.latlng = { lat: loc.lat(), lng: loc.lng() };
+      state.address = place.formatted_address || addressInput.value;
+
+      // Reset quote state for the new address
+      state.selected = [];
+      state.sizes = {};
+      state.sizeIndex = 0;
+      state.timeOfDay = "Either";
+
+      map.panTo(loc);
+      smoothZoom(map, 20, map.getZoom());
+
+      if (addressMarker) addressMarker.setMap(null);
+      addressMarker = new google.maps.Marker({
+        position: loc,
+        map: map,
+        animation: google.maps.Animation.DROP,
+      });
+
+      // Pan map up a bit after the sheet opens so the marker is visible
+      setTimeout(function () { map.panBy(0, 120); }, 500);
+
+      showStep("services");
+    });
+
+    // Search clear button
+    addressInput.addEventListener("input", function () {
+      searchClearEl.classList.toggle("hidden", !addressInput.value);
+    });
+    searchClearEl.addEventListener("click", function () {
+      addressInput.value = "";
+      searchClearEl.classList.add("hidden");
+      addressInput.focus();
+    });
+
+    // Measure toolbar buttons
+    btnAdd.addEventListener("click", function () { commitCurrentShapeAndStart(1); });
+    btnCut.addEventListener("click", function () { commitCurrentShapeAndStart(-1); });
+    btnUndo.addEventListener("click", undoMeasure);
+    btnCancel.addEventListener("click", cancelMeasure);
+    btnDone.addEventListener("click", doneMeasure);
+  };
+
+  // ---------- smooth zoom ----------
+  function smoothZoom(mapInstance, target, current) {
+    if (current === target) return;
+    var next = current + (target > current ? 1 : -1);
+    mapInstance.setZoom(next);
+    if (next !== target) {
+      setTimeout(function () { smoothZoom(mapInstance, target, next); }, 80);
+    }
   }
 
+  // ---------- pricing ----------
   function priceForPreset(svc, preset) {
     if (preset.price != null) return preset.price;
     return Math.max(preset.sqft * svc.rate, svc.min || 0);
   }
 
-  function showSizeScreen() {
-    const svc = currentService();
-    $("size-title").textContent = svc.emoji + " " + svc.name + " — how big?";
-    const n = state.selected.length;
-    $("size-hint").textContent =
-      (n > 1 ? "(" + (state.sizeIndex + 1) + " of " + n + ") " : "") +
-      "Closest guess is fine — we double-check on arrival.";
-
-    const list = $("size-options");
-    list.innerHTML = "";
-
-    // satellite measuring up top — the headline option, not a footnote
-    if (svc.mappable) {
-      const mapBtn = document.createElement("button");
-      mapBtn.className = "map-option";
-      mapBtn.type = "button";
-      mapBtn.innerHTML =
-        '<span class="map-option-badge">EXACT PRICE</span>' +
-        '<div class="map-option-title">🛰 Outline it on the map</div>' +
-        '<div class="map-option-sub">See your home from above — trace your ' +
-        svc.name.toLowerCase() + " for a to-the-foot price</div>";
-      mapBtn.addEventListener("click", openMeasure);
-      list.appendChild(mapBtn);
-
-      const divider = document.createElement("p");
-      divider.className = "option-divider";
-      divider.textContent = "— or just take your best guess —";
-      list.appendChild(divider);
-    }
-
-    svc.presets.forEach((preset) => {
-      const btn = document.createElement("button");
-      btn.className = "size-option";
-      btn.type = "button";
-      btn.innerHTML =
-        "<span><span class='size-label'>" + preset.label + "</span><br>" +
-        "<span class='size-sub'>" + preset.sub + "</span></span>" +
-        "<span class='size-price'>" + fmt(priceForPreset(svc, preset)) + "</span>";
-      btn.addEventListener("click", () => {
-        state.sizes[svc.id] = {
-          label: preset.label,
-          sqft: preset.sqft || null,
-          price: priceForPreset(svc, preset),
-        };
-        nextSizeOrQuote();
-      });
-      list.appendChild(btn);
-    });
-
-    show("sizes", "sizes");
-  }
-
-  function nextSizeOrQuote() {
-    state.sizeIndex++;
-    if (state.sizeIndex < state.selected.length) showSizeScreen();
-    else showQuote();
-  }
-
-  // ---------- quote ----------
   function buildLines() {
-    const lines = state.selected.map((id) => {
-      const svc = CONFIG.services.find((s) => s.id === id);
-      const size = state.sizes[id];
+    var lines = state.selected.map(function (id) {
+      var svc = CONFIG.services.find(function (s) { return s.id === id; });
+      var size = state.sizes[id];
       return {
         name: svc.emoji + " " + svc.name,
         sub: size.sqft
           ? size.label + " · about " + Math.round(size.sqft).toLocaleString() + " sq ft"
           : size.label,
         amount: size.price,
+        discount: false,
       };
     });
 
-    let total = lines.reduce((sum, l) => sum + l.amount, 0);
+    var total = lines.reduce(function (sum, l) { return sum + l.amount; }, 0);
 
     if (CONFIG.bundleDiscountPercent > 0 && lines.length >= 2) {
-      const off = total * (CONFIG.bundleDiscountPercent / 100);
+      var off = total * (CONFIG.bundleDiscountPercent / 100);
       lines.push({
         name: "🎁 Bundle discount",
         sub: lines.length + " services together",
@@ -396,312 +199,612 @@
         name: "Minimum visit",
         sub: "small-job adjustment",
         amount: CONFIG.minimumJob - total,
+        discount: false,
       });
       total = CONFIG.minimumJob;
     }
 
-    return { lines, total };
+    return { lines: lines, total: total };
   }
 
   function renderLines(listEl, totalEl) {
-    const { lines, total } = buildLines();
+    var result = buildLines();
+    var lines = result.lines;
+    var total = result.total;
     listEl.innerHTML = "";
-    lines.forEach((l) => {
-      const li = document.createElement("li");
+    lines.forEach(function (l) {
+      var li = document.createElement("li");
       if (l.discount) li.className = "discount";
       li.innerHTML =
-        "<span>" + l.name + "<span class='line-sub'>" + l.sub + "</span></span>" +
-        "<span class='line-amount'>" + (l.amount < 0 ? "−" + fmt(-l.amount) : fmt(l.amount)) + "</span>";
+        "<span>" +
+        escHtml(l.name) +
+        "<span class='l-sub'>" +
+        escHtml(l.sub) +
+        "</span></span>" +
+        "<span class='l-amt'>" +
+        fmt(l.amount) +
+        "</span>";
       listEl.appendChild(li);
     });
-    totalEl.textContent = fmt(total);
+    if (totalEl) totalEl.textContent = fmt(total);
     return total;
   }
 
-  function showQuote() {
-    renderLines($("quote-lines"), $("quote-total-amount"));
-    show("quote", "quote");
+  // ---------- bottom-sheet step engine ----------
+  var _currentStep = null;
+  var _hideSheetTimer = null;
+
+  function showStep(name) {
+    // Cancel any pending hide timer so it doesn't close us right after we open
+    if (_hideSheetTimer) { clearTimeout(_hideSheetTimer); _hideSheetTimer = null; }
+
+    if (sheetEl.classList.contains("hidden")) {
+      // First time (or forced hidden) — render immediately
+      sheetBodyEl.innerHTML = "";
+      renderStep(name);
+      sheetEl.classList.remove("hidden");
+      sheetEl.classList.remove("slide-out");
+    } else {
+      // Slide out, swap content, slide in
+      sheetEl.classList.add("slide-out");
+      setTimeout(function () {
+        sheetBodyEl.innerHTML = "";
+        renderStep(name);
+        sheetEl.classList.remove("slide-out");
+      }, 160);
+    }
+    _currentStep = name;
   }
 
-  $("btn-edit-quote").addEventListener("click", () => show("services", "services"));
-  $("btn-book").addEventListener("click", () => {
-    show("book", "book");
-    const d = new Date(Date.now() + 3 * 24 * 3600 * 1000); // suggest ~3 days out
-    $("book-date").value = d.toISOString().slice(0, 10);
-  });
+  function hideSheet() {
+    sheetEl.classList.add("slide-out");
+    _hideSheetTimer = setTimeout(function () {
+      sheetEl.classList.add("hidden");
+      _hideSheetTimer = null;
+    }, 320);
+  }
 
-  // ---------- booking ----------
-  document.querySelectorAll("#book-timeofday .pill").forEach((pill) => {
-    pill.addEventListener("click", () => {
-      document.querySelectorAll("#book-timeofday .pill").forEach((p) => p.classList.remove("selected"));
-      pill.classList.add("selected");
-      state.timeOfDay = pill.dataset.tod;
+  function renderStep(name) {
+    switch (name) {
+      case "services": renderServices(); break;
+      case "size":     renderSize();     break;
+      case "quote":    renderQuote();    break;
+      case "book":     renderBook();     break;
+      default: break;
+    }
+  }
+
+  // ---------- STEP: services ----------
+  function renderServices() {
+    var h2 = document.createElement("h2");
+    h2.textContent = "What needs cleaning?";
+    sheetBodyEl.appendChild(h2);
+
+    var p = document.createElement("p");
+    p.className = "sub";
+    p.textContent = CONFIG.business.tagline;
+    sheetBodyEl.appendChild(p);
+
+    var grid = document.createElement("div");
+    grid.className = "chip-grid";
+
+    var continueBtn = document.createElement("button");
+    continueBtn.className = "btn btn-primary";
+    continueBtn.type = "button";
+    continueBtn.textContent = "Continue";
+    continueBtn.disabled = state.selected.length === 0;
+
+    CONFIG.services.forEach(function (svc) {
+      var chip = document.createElement("button");
+      chip.className = "chip" + (state.selected.indexOf(svc.id) >= 0 ? " on" : "");
+      chip.type = "button";
+      chip.innerHTML =
+        "<span class='chip-emoji'>" + svc.emoji + "</span>" +
+        "<span class='chip-name'>" + escHtml(svc.name) + "</span>" +
+        "<span class='chip-sub'>" + escHtml(svc.blurb) + "</span>";
+
+      chip.addEventListener("click", function () {
+        var idx = state.selected.indexOf(svc.id);
+        if (idx >= 0) {
+          state.selected.splice(idx, 1);
+          delete state.sizes[svc.id];
+          chip.classList.remove("on");
+        } else {
+          state.selected.push(svc.id);
+          chip.classList.add("on");
+        }
+        continueBtn.disabled = state.selected.length === 0;
+      });
+      grid.appendChild(chip);
     });
-  });
 
-  function bookingSummaryText() {
-    const { lines, total } = buildLines();
+    sheetBodyEl.appendChild(grid);
+
+    continueBtn.addEventListener("click", function () {
+      state.sizeIndex = 0;
+      showStep("size");
+    });
+    sheetBodyEl.appendChild(continueBtn);
+  }
+
+  // ---------- STEP: size ----------
+  function renderSize() {
+    var svc = CONFIG.services.find(function (s) { return s.id === state.selected[state.sizeIndex]; });
+    if (!svc) return;
+
+    var n = state.selected.length;
+    var h2 = document.createElement("h2");
+    h2.textContent =
+      "How big is your " + svc.name.toLowerCase() + "?" +
+      (n > 1 ? " (" + (state.sizeIndex + 1) + " of " + n + ")" : "");
+    sheetBodyEl.appendChild(h2);
+
+    var hint = document.createElement("p");
+    hint.className = "sub";
+    hint.textContent = "Closest guess is fine — we double-check on arrival.";
+    sheetBodyEl.appendChild(hint);
+
+    if (svc.mappable) {
+      var ctaBtn = document.createElement("button");
+      ctaBtn.className = "measure-cta";
+      ctaBtn.type = "button";
+      ctaBtn.innerHTML =
+        "<span class='cta-badge'>EXACT PRICE</span>" +
+        "<div class='cta-title'>&#x1F6F0; Trace it on the map</div>" +
+        "<div class='cta-sub'>See your home from above — trace your " +
+        escHtml(svc.name.toLowerCase()) + " for a to-the-foot price</div>";
+      (function (s) {
+        ctaBtn.addEventListener("click", function () { enterMeasureMode(s); });
+      })(svc);
+      sheetBodyEl.appendChild(ctaBtn);
+
+      var divEl = document.createElement("p");
+      divEl.className = "divider";
+      divEl.textContent = "— or pick a size —";
+      sheetBodyEl.appendChild(divEl);
+    }
+
+    svc.presets.forEach(function (preset) {
+      var btn = document.createElement("button");
+      btn.className = "opt";
+      btn.type = "button";
+      btn.innerHTML =
+        "<span><span class='opt-label'>" + escHtml(preset.label) + "</span>" +
+        "<br><span class='opt-sub'>" + escHtml(preset.sub) + "</span></span>" +
+        "<span class='opt-price'>" + fmt(priceForPreset(svc, preset)) + "</span>";
+      (function (s, pr) {
+        btn.addEventListener("click", function () {
+          state.sizes[s.id] = {
+            label: pr.label,
+            sqft: pr.sqft || null,
+            price: priceForPreset(s, pr),
+          };
+          nextSizeOrQuote();
+        });
+      })(svc, preset);
+      sheetBodyEl.appendChild(btn);
+    });
+  }
+
+  function nextSizeOrQuote() {
+    state.sizeIndex++;
+    if (state.sizeIndex < state.selected.length) {
+      showStep("size");
+    } else {
+      showStep("quote");
+    }
+  }
+
+  // ---------- STEP: quote ----------
+  function renderQuote() {
+    var h2 = document.createElement("h2");
+    h2.textContent = "Your price";
+    sheetBodyEl.appendChild(h2);
+
+    var list = document.createElement("ul");
+    list.className = "lines";
+    sheetBodyEl.appendChild(list);
+
+    var totalRow = document.createElement("div");
+    totalRow.className = "total";
+    totalRow.innerHTML = "<span>Total</span><span class='t-amt'></span>";
+    sheetBodyEl.appendChild(totalRow);
+
+    renderLines(list, totalRow.querySelector(".t-amt"));
+
+    var fine = document.createElement("p");
+    fine.className = "fine";
+    fine.textContent = CONFIG.disclaimer;
+    sheetBodyEl.appendChild(fine);
+
+    var bookBtn = document.createElement("button");
+    bookBtn.className = "btn btn-primary";
+    bookBtn.type = "button";
+    bookBtn.textContent = "Book it";
+    bookBtn.addEventListener("click", function () { showStep("book"); });
+    sheetBodyEl.appendChild(bookBtn);
+
+    var backBtn = document.createElement("button");
+    backBtn.className = "btn-text";
+    backBtn.type = "button";
+    backBtn.textContent = "← Change something";
+    backBtn.addEventListener("click", function () {
+      state.sizeIndex = 0;
+      showStep("services");
+    });
+    sheetBodyEl.appendChild(backBtn);
+  }
+
+  // ---------- STEP: book ----------
+  function renderBook() {
+    var h2 = document.createElement("h2");
+    h2.textContent = "Book your cleaning";
+    sheetBodyEl.appendChild(h2);
+
+    var nameField = document.createElement("input");
+    nameField.className = "field";
+    nameField.type = "text";
+    nameField.placeholder = "Your name";
+    sheetBodyEl.appendChild(nameField);
+
+    var phoneField = document.createElement("input");
+    phoneField.className = "field";
+    phoneField.type = "tel";
+    phoneField.placeholder = "Phone number";
+    sheetBodyEl.appendChild(phoneField);
+
+    var dateField = document.createElement("input");
+    dateField.className = "field";
+    dateField.type = "date";
+    var prefill = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+    dateField.value = prefill.toISOString().slice(0, 10);
+    sheetBodyEl.appendChild(dateField);
+
+    var pillRow = document.createElement("div");
+    pillRow.className = "pill-row";
+    ["Morning", "Afternoon", "Either"].forEach(function (label) {
+      var pill = document.createElement("button");
+      pill.className = "pill" + (state.timeOfDay === label ? " on" : "");
+      pill.type = "button";
+      pill.textContent = label;
+      pill.addEventListener("click", function () {
+        state.timeOfDay = label;
+        pillRow.querySelectorAll(".pill").forEach(function (p) { p.classList.remove("on"); });
+        pill.classList.add("on");
+      });
+      pillRow.appendChild(pill);
+    });
+    sheetBodyEl.appendChild(pillRow);
+
+    var errEl = document.createElement("p");
+    errEl.className = "err";
+    errEl.style.display = "none";
+    sheetBodyEl.appendChild(errEl);
+
+    var sendBtn = document.createElement("button");
+    sendBtn.className = "btn btn-primary";
+    sendBtn.type = "button";
+    sendBtn.textContent = "Request booking";
+    sendBtn.addEventListener("click", function () {
+      var name = nameField.value.trim();
+      var phone = phoneField.value.trim();
+      if (!name || !phone) {
+        errEl.textContent = "Please enter your name and phone number.";
+        errEl.style.display = "";
+        return;
+      }
+      errEl.style.display = "none";
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Sending…";
+      sendBooking(name, phone, dateField.value, state.timeOfDay);
+    });
+    sheetBodyEl.appendChild(sendBtn);
+  }
+
+  // ---------- booking delivery ----------
+  function buildSummaryText(name, phone, date, time) {
+    var result = buildLines();
+    var lines = result.lines;
+    var total = result.total;
+    var itemLines = lines
+      .map(function (l) { return l.name + " — " + fmt(l.amount) + " (" + l.sub + ")"; })
+      .join("\n");
     return [
-      "NEW BOOKING REQUEST — " + CONFIG.business.name,
+      CONFIG.business.name + " — Booking Request",
       "",
-      "Name: " + $("book-name").value.trim(),
-      "Phone: " + $("book-phone").value.trim(),
-      "Address: " + (state.address || "(not given)"),
-      "Preferred day: " + ($("book-date").value || "(any)") + " — " + state.timeOfDay,
+      "Customer: " + name,
+      "Phone: " + phone,
+      "Address: " + state.address,
+      "Preferred date: " + date,
+      "Preferred time: " + time,
       "",
       "Services:",
-      ...lines.map(
-        (l) => "  • " + l.name.replace(/[^\x20-\x7E]/g, "").trim() + " (" + l.sub + "): " +
-               (l.amount < 0 ? "-" : "") + fmt(Math.abs(l.amount))
-      ),
+      itemLines,
       "",
-      "TOTAL ESTIMATE: " + fmt(total),
+      "TOTAL: " + fmt(total),
+      "",
+      CONFIG.disclaimer,
     ].join("\n");
   }
 
-  async function sendBooking() {
-    const name = $("book-name").value.trim();
-    const phone = $("book-phone").value.trim();
-    if (!name || !phone) {
-      $("book-error").classList.remove("hidden");
-      return;
+  function sendBooking(name, phone, date, time) {
+    var summary = buildSummaryText(name, phone, date, time);
+
+    function finish(usedEmail) {
+      sheetBodyEl.innerHTML = "";
+      renderDone(usedEmail, name);
     }
-    $("book-error").classList.add("hidden");
 
-    const btn = $("btn-send-booking");
-    btn.disabled = true;
-    btn.textContent = "Sending…";
-
-    let delivered = false;
     if (CONFIG.web3formsKey) {
-      try {
-        const res = await fetch("https://api.web3forms.com/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            access_key: CONFIG.web3formsKey,
-            subject: "New booking request: " + name,
-            from_name: CONFIG.business.name + " Instant Quote",
-            message: bookingSummaryText(),
-          }),
+      fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          access_key: CONFIG.web3formsKey,
+          subject: "New booking request — " + name,
+          from_name: name,
+          message: summary,
+        }),
+      })
+        .then(function (res) {
+          if (res.ok) {
+            finish(true);
+          } else {
+            fallbackMailto(summary);
+            finish(false);
+          }
+        })
+        .catch(function () {
+          fallbackMailto(summary);
+          finish(false);
         });
-        delivered = res.ok;
-      } catch (_) { /* fall through to mailto */ }
-    }
-
-    if (!delivered) {
-      // No form key (or it failed): open the customer's email app pre-filled.
-      window.location.href =
-        "mailto:" + CONFIG.business.email +
-        "?subject=" + encodeURIComponent("Booking request — " + name) +
-        "&body=" + encodeURIComponent(bookingSummaryText());
-    }
-
-    btn.disabled = false;
-    btn.textContent = "Request My Booking  ✓";
-
-    const total = renderLines($("done-lines"), $("done-total-amount"));
-    void total;
-    $("done-message").textContent = delivered
-      ? "We'll text you shortly to confirm your day and time."
-      : "One more tap: hit Send in the email that just opened, and we'll text you to confirm.";
-    $("done-contact").textContent =
-      "Questions? Call " + CONFIG.business.phone + " · " + CONFIG.business.serviceArea;
-    show("done", null);
-  }
-
-  $("btn-send-booking").addEventListener("click", sendBooking);
-
-  // ---------- map measuring ----------
-  let map = null;
-  let measureImagery = null;
-  let corners = [];        // L.LatLng[]
-  let markers = [];
-  let polygon = null;
-
-  // Geodesic polygon area (Chamberlain & Duquette spherical excess), m².
-  function polygonAreaSqM(pts) {
-    if (pts.length < 3) return 0;
-    const R = 6378137;
-    const rad = Math.PI / 180;
-    let sum = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[(i + 1) % pts.length];
-      sum += (b.lng - a.lng) * rad * (2 + Math.sin(a.lat * rad) + Math.sin(b.lat * rad));
-    }
-    return Math.abs((sum * R * R) / 2);
-  }
-
-  const SQM_TO_SQFT = 10.7639;
-
-  // Shapes support add/cut: trace the patio, then cut the pool out of it.
-  // Walkways & driveways in separate pieces? "Add section" sums them.
-  let shapes = [];       // committed: { pts, sign(+1 add / -1 cut), layer }
-  let currentSign = 1;   // sign of the shape being drawn right now
-
-  const SHAPE_STYLE = {
-    "1":  { color: "#0b66ff", weight: 3, fillOpacity: 0.25 },
-    "-1": { color: "#e54d42", weight: 3, fillOpacity: 0.4, dashArray: "6 6" },
-  };
-
-  function netSqM() {
-    let m2 = shapes.reduce((sum, s) => sum + s.sign * polygonAreaSqM(s.pts), 0);
-    if (corners.length >= 3) m2 += currentSign * polygonAreaSqM(corners);
-    return Math.max(m2, 0);
-  }
-
-  function refreshMeasureUI() {
-    const drawingFirst = shapes.length === 0;
-    const sqft = netSqM() * SQM_TO_SQFT;
-
-    if (drawingFirst && corners.length < 3) {
-      $("measure-readout").textContent =
-        corners.length + " corner" + (corners.length === 1 ? "" : "s") + " \u2014 tap at least 3";
-    } else if (corners.length > 0 && corners.length < 3) {
-      $("measure-readout").textContent =
-        Math.round(sqft).toLocaleString() + " sq ft \u2014 finish this shape (3+ corners)";
     } else {
-      $("measure-readout").textContent = Math.round(sqft).toLocaleString() + " sq ft";
-    }
-
-    // Done: every started shape must be finished, and something must remain.
-    const incomplete = corners.length > 0 && corners.length < 3;
-    $("btn-measure-done").disabled =
-      incomplete || (corners.length < 3 && !shapes.some((s) => s.sign > 0));
-
-    // Add/Cut appear once there is a finished shape to build on.
-    $("measure-shape-actions").classList.toggle(
-      "hidden",
-      corners.length < 3 && shapes.length === 0
-    );
-    $("btn-measure-add").disabled = incomplete;
-    $("btn-measure-cut").disabled = incomplete;
-
-    if (polygon) polygon.remove();
-    polygon = null;
-    if (corners.length >= 2) {
-      polygon = L.polygon(corners, SHAPE_STYLE[String(currentSign)]).addTo(map);
+      fallbackMailto(summary);
+      finish(false);
     }
   }
 
-  function clearCurrent() {
-    corners = [];
-    markers.forEach((m) => m.remove());
-    markers = [];
-    if (polygon) { polygon.remove(); polygon = null; }
+  function fallbackMailto(summary) {
+    var subject = encodeURIComponent("Booking request — " + CONFIG.business.name);
+    var body = encodeURIComponent(summary);
+    window.location.href =
+      "mailto:" + CONFIG.business.email + "?subject=" + subject + "&body=" + body;
   }
 
-  function commitCurrentShape() {
-    if (corners.length < 3) return;
-    const layer = L.polygon(corners, SHAPE_STYLE[String(currentSign)]).addTo(map);
-    shapes.push({ pts: corners.slice(), sign: currentSign, layer });
-    clearCurrent();
+  // ---------- STEP: done ----------
+  function renderDone(usedEmail, name) {
+    var h2 = document.createElement("h2");
+    h2.textContent = usedEmail
+      ? "You’re all set, " + name + "! 🎉"
+      : "Almost done, " + name + "!";
+    sheetBodyEl.appendChild(h2);
+
+    var msg = document.createElement("p");
+    msg.textContent = usedEmail
+      ? "Your booking request is on its way. We’ll reach out soon to confirm."
+      : "Your email app should have opened with the booking request — just hit send!";
+    sheetBodyEl.appendChild(msg);
+
+    var h3 = document.createElement("h3");
+    h3.textContent = "Quote summary";
+    h3.style.margin = "18px 0 4px";
+    sheetBodyEl.appendChild(h3);
+
+    var list = document.createElement("ul");
+    list.className = "lines";
+    sheetBodyEl.appendChild(list);
+
+    var totalRow = document.createElement("div");
+    totalRow.className = "total";
+    totalRow.innerHTML = "<span>Total</span><span class='t-amt'></span>";
+    sheetBodyEl.appendChild(totalRow);
+
+    renderLines(list, totalRow.querySelector(".t-amt"));
+
+    var contact = document.createElement("p");
+    contact.className = "fine";
+    contact.textContent =
+      "Questions? Call us: " + CONFIG.business.phone + " · " + CONFIG.business.email;
+    sheetBodyEl.appendChild(contact);
   }
 
-  function startShape(sign, hint) {
-    commitCurrentShape();
-    currentSign = sign;
-    $("measure-instructions").innerHTML = hint;
-    refreshMeasureUI();
+  // ================================================================
+  //  MEASURE MODE
+  // ================================================================
+
+  function enterMeasureMode(svc) {
+    state.measuring = true;
+    state.measureServiceId = svc.id;
+    state.shapes = [];
+    state.currentPath = [];
+    state.currentSign = 1;
+    state.currentMarkers = [];
+    state.currentPolygon = null;
+
+    hideSheet();
+    measureTopEl.classList.remove("hidden");
+    measureControlsEl.classList.remove("hidden");
+
+    measureInstructionsEl.innerHTML =
+      "Tap each <b>corner</b> of your " + escHtml(svc.name.toLowerCase()) + ".";
+    btnCut.textContent =
+      svc.id === "patio" ? "➖ Cut out pool" : "➖ Cut a part out";
+    btnDone.disabled = true;
+    btnAdd.disabled = false;
+    btnCut.disabled = false;
+
+    mapClickListener = map.addListener("click", onMapClick);
+    updateMeasureReadout();
   }
 
-  $("btn-measure-add").addEventListener("click", () =>
-    startShape(1, "Tap the corners of the <b>next section</b>.")
-  );
-  $("btn-measure-cut").addEventListener("click", () =>
-    startShape(-1, "Now tap the corners of the part to <b>remove</b> \u2014 it won\u2019t be counted.")
-  );
+  function onMapClick(e) {
+    state.currentPath.push(e.latLng);
 
-  function openMeasure() {
-    $("measure-overlay").classList.remove("hidden");
-    clearCurrent();
-    shapes.forEach((s) => s.layer.remove());
-    shapes = [];
-    currentSign = 1;
+    var isAdd = state.currentSign > 0;
+    var marker = new google.maps.Marker({
+      position: e.latLng,
+      map: map,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 5,
+        fillColor: isAdd ? "#1a73e8" : "#d93025",
+        fillOpacity: 1,
+        strokeColor: "#fff",
+        strokeWeight: 2,
+      },
+    });
+    state.currentMarkers.push(marker);
 
-    const svc = currentService();
-    $("measure-instructions").innerHTML =
-      "Tap each <b>corner</b> of your " + svc.name.toLowerCase() + ". Pinch to zoom.";
-    $("btn-measure-cut").textContent =
-      svc.id === "patio" ? "\u2796 Cut out the pool" : "\u2796 Cut a part out";
+    drawCurrentPolygon();
+    updateMeasureReadout();
+  }
 
-    if (!map) {
-      map = L.map("measure-map", { zoomControl: true, attributionControl: true });
-      measureImagery = imagerySwitcher(map, $("btn-measure-layer"));
-      map.on("click", (e) => {
-        corners.push(e.latlng);
-        const style = SHAPE_STYLE[String(currentSign)];
-        const marker = L.circleMarker(e.latlng, {
-          radius: 9, color: "#fff", weight: 3, fillColor: style.color, fillOpacity: 1,
-        }).addTo(map);
-        markers.push(marker);
-        refreshMeasureUI();
-      });
+  function drawCurrentPolygon() {
+    if (state.currentPolygon) {
+      state.currentPolygon.setMap(null);
+      state.currentPolygon = null;
     }
+    if (state.currentPath.length < 2) return;
 
-    if (state.latlng) {
-      map.setView(state.latlng, 20);
+    var isAdd = state.currentSign > 0;
+    state.currentPolygon = new google.maps.Polygon({
+      paths: state.currentPath,
+      map: map,
+      strokeColor: isAdd ? "#1a73e8" : "#d93025",
+      strokeOpacity: 0.9,
+      strokeWeight: 2,
+      fillColor: isAdd ? "#1a73e8" : "#d93025",
+      fillOpacity: 0.25,
+    });
+  }
+
+  function sqftOfPath(path) {
+    var area = google.maps.geometry.spherical.computeArea(path);
+    return area * 10.7639;
+  }
+
+  function netSqft() {
+    var total = 0;
+    state.shapes.forEach(function (sh) {
+      total += sh.sign * sqftOfPath(sh.path);
+    });
+    if (state.currentPath.length >= 3) {
+      total += state.currentSign * sqftOfPath(state.currentPath);
+    }
+    return Math.max(0, total);
+  }
+
+  function updateMeasureReadout() {
+    var n = state.currentPath.length;
+    var committed = state.shapes.length;
+
+    if (committed === 0 && n < 3) {
+      measureReadoutEl.textContent =
+        n === 0
+          ? "Tap corners to start"
+          : n + " corner" + (n === 1 ? "" : "s") + " — tap at least 3";
     } else {
-      // No address — try the phone's GPS so they aren't staring at all of America.
-      map.setView([39.5, -98.35], 4);
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => map.setView([pos.coords.latitude, pos.coords.longitude], 20),
-          () => {} // declined — they can pinch-zoom to their house
-        );
+      var sqft = netSqft();
+      measureReadoutEl.textContent = Math.round(sqft).toLocaleString() + " sq ft";
+    }
+
+    var hasArea = netSqft() > 0;
+    btnDone.disabled = !hasArea;
+  }
+
+  function commitCurrentShapeAndStart(sign) {
+    if (state.currentPath.length >= 3) {
+      if (state.currentPolygon) {
+        state.currentPolygon.setMap(null);
+        state.currentPolygon = null;
       }
+      var isAdd = state.currentSign > 0;
+      var committedPolygon = new google.maps.Polygon({
+        paths: state.currentPath,
+        map: map,
+        strokeColor: isAdd ? "#1a73e8" : "#d93025",
+        strokeOpacity: 0.9,
+        strokeWeight: 2,
+        fillColor: isAdd ? "#1a73e8" : "#d93025",
+        fillOpacity: 0.2,
+      });
+      state.shapes.push({
+        path: state.currentPath.slice(),
+        sign: state.currentSign,
+        polygon: committedPolygon,
+      });
+      state.currentMarkers.forEach(function (m) { m.setMap(null); });
+      state.currentMarkers = [];
+      state.currentPath = [];
     }
-    setTimeout(() => map.invalidateSize(), 60);
-    refreshMeasureUI();
+
+    state.currentSign = sign;
+    updateMeasureReadout();
   }
 
-  function closeMeasure() {
-    $("measure-overlay").classList.add("hidden");
+  function undoMeasure() {
+    if (state.currentPath.length > 0) {
+      state.currentPath.pop();
+      var lastMarker = state.currentMarkers.pop();
+      if (lastMarker) lastMarker.setMap(null);
+      drawCurrentPolygon();
+    } else if (state.shapes.length > 0) {
+      var last = state.shapes.pop();
+      if (last.polygon) last.polygon.setMap(null);
+    }
+    updateMeasureReadout();
   }
 
-  $("btn-measure-layer").addEventListener("click", () => {
-    if (measureImagery) measureImagery.toggle();
-  });
-  $("btn-measure-cancel").addEventListener("click", closeMeasure);
-  $("btn-measure-undo").addEventListener("click", () => {
-    if (corners.length > 0) {
-      corners.pop();
-      const m = markers.pop();
-      if (m) m.remove();
-    } else if (shapes.length > 0) {
-      // nothing in progress — undo the last finished shape instead
-      const s = shapes.pop();
-      s.layer.remove();
-      if (shapes.length === 0) currentSign = 1;
-    }
-    refreshMeasureUI();
-  });
+  function cancelMeasure() {
+    clearMeasureOverlays();
+    exitMeasureMode();
+    showStep("size");
+  }
 
-  // Largest believable residential surface. Anything bigger means they
-  // outlined the neighborhood at low zoom, not their driveway.
-  const MAX_REASONABLE_SQFT = 25000;
-
-  $("btn-measure-done").addEventListener("click", () => {
-    commitCurrentShape();
-    const svc = currentService();
-    const sqft = Math.max(netSqM() * SQM_TO_SQFT, 1);
-    if (sqft > MAX_REASONABLE_SQFT) {
+  function doneMeasure() {
+    var sqft = netSqft();
+    if (sqft > 25000) {
       alert(
-        "Whoa \u2014 that outline covers " + Math.round(sqft).toLocaleString() +
-        " sq ft! Zoom in until you can clearly see your " + svc.name.toLowerCase() +
-        ", then tap its corners."
+        "That’s over 25,000 sq ft — please zoom in and re-trace a smaller area. " +
+        "If your surface really is that large, call us for a custom quote!"
       );
-      refreshMeasureUI();
       return;
     }
-    const hasCut = shapes.some((s) => s.sign < 0);
-    state.sizes[svc.id] = {
-      label: hasCut ? "Measured on map (cut-out removed)" : "Measured on map",
-      sqft: sqft,
-      price: Math.max(sqft * svc.rate, svc.min || 0),
-    };
-    closeMeasure();
+
+    var svc = CONFIG.services.find(function (s) { return s.id === state.measureServiceId; });
+    var hasCut = state.shapes.some(function (sh) { return sh.sign < 0; });
+    var label = hasCut ? "Measured on map (cut-out removed)" : "Measured on map";
+    var price = Math.max(sqft * svc.rate, svc.min || 0);
+
+    state.sizes[svc.id] = { label: label, sqft: sqft, price: price };
+
+    clearMeasureOverlays();
+    exitMeasureMode();
     nextSizeOrQuote();
-  });
+  }
+
+  function clearMeasureOverlays() {
+    state.shapes.forEach(function (sh) {
+      if (sh.polygon) sh.polygon.setMap(null);
+    });
+    state.currentMarkers.forEach(function (m) { m.setMap(null); });
+    if (state.currentPolygon) {
+      state.currentPolygon.setMap(null);
+      state.currentPolygon = null;
+    }
+    state.shapes = [];
+    state.currentPath = [];
+    state.currentMarkers = [];
+  }
+
+  function exitMeasureMode() {
+    state.measuring = false;
+    if (mapClickListener) {
+      google.maps.event.removeListener(mapClickListener);
+      mapClickListener = null;
+    }
+    measureTopEl.classList.add("hidden");
+    measureControlsEl.classList.add("hidden");
+  }
+
 })();
