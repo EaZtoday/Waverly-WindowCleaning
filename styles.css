@@ -273,6 +273,9 @@ h2 { font-size: 1.7rem; margin: 12px 0 0; }
   background: #000;
 }
 #measure-map { position: absolute; inset: 0; }
+/* keep Leaflet's zoom buttons clear of the instruction banner */
+#measure-overlay .leaflet-top { top: 96px; }
+
 .measure-top {
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -284,13 +287,20 @@ h2 { font-size: 1.7rem; margin: 12px 0 0; }
 }
 .measure-top p { margin: 2px 0; }
 #measure-readout { font-weight: 800; font-size: 1.2rem; color: #7fd4a8; }
-.measure-buttons {
+.measure-bottom {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   z-index: 1001;
-  display: flex;
-  gap: 10px;
-  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
   background: rgba(21, 32, 43, 0.85);
+  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+.measure-buttons { display: flex; gap: 10px; }
 .measure-buttons .btn-big { margin-top: 0; padding: 14px 8px; font-size: 1.05rem; }
+.btn-cut {
+  background: #fff;
+  color: var(--red);
+  border: 2px solid var(--red);
+}

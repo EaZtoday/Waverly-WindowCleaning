@@ -395,41 +395,105 @@
 
   const SQM_TO_SQFT = 10.7639;
 
+  // Shapes support add/cut: trace the patio, then cut the pool out of it.
+  // Walkways & driveways in separate pieces? "Add section" sums them.
+  let shapes = [];       // committed: { pts, sign(+1 add / -1 cut), layer }
+  let currentSign = 1;   // sign of the shape being drawn right now
+
+  const SHAPE_STYLE = {
+    "1":  { color: "#0b66ff", weight: 3, fillOpacity: 0.25 },
+    "-1": { color: "#e54d42", weight: 3, fillOpacity: 0.4, dashArray: "6 6" },
+  };
+
+  function netSqM() {
+    let m2 = shapes.reduce((sum, s) => sum + s.sign * polygonAreaSqM(s.pts), 0);
+    if (corners.length >= 3) m2 += currentSign * polygonAreaSqM(corners);
+    return Math.max(m2, 0);
+  }
+
   function refreshMeasureUI() {
-    const sqft = polygonAreaSqM(corners) * SQM_TO_SQFT;
-    if (corners.length < 3) {
+    const drawingFirst = shapes.length === 0;
+    const sqft = netSqM() * SQM_TO_SQFT;
+
+    if (drawingFirst && corners.length < 3) {
       $("measure-readout").textContent =
-        corners.length + " corner" + (corners.length === 1 ? "" : "s") + " — tap at least 3";
+        corners.length + " corner" + (corners.length === 1 ? "" : "s") + " \u2014 tap at least 3";
+    } else if (corners.length > 0 && corners.length < 3) {
+      $("measure-readout").textContent =
+        Math.round(sqft).toLocaleString() + " sq ft \u2014 finish this shape (3+ corners)";
     } else {
       $("measure-readout").textContent = Math.round(sqft).toLocaleString() + " sq ft";
     }
-    $("btn-measure-done").disabled = corners.length < 3;
+
+    // Done: every started shape must be finished, and something must remain.
+    const incomplete = corners.length > 0 && corners.length < 3;
+    $("btn-measure-done").disabled =
+      incomplete || (corners.length < 3 && !shapes.some((s) => s.sign > 0));
+
+    // Add/Cut appear once there is a finished shape to build on.
+    $("measure-shape-actions").classList.toggle(
+      "hidden",
+      corners.length < 3 && shapes.length === 0
+    );
+    $("btn-measure-add").disabled = incomplete;
+    $("btn-measure-cut").disabled = incomplete;
 
     if (polygon) polygon.remove();
     polygon = null;
     if (corners.length >= 2) {
-      polygon = L.polygon(corners, { color: "#0b66ff", weight: 3, fillOpacity: 0.25 }).addTo(map);
+      polygon = L.polygon(corners, SHAPE_STYLE[String(currentSign)]).addTo(map);
     }
   }
 
-  function openMeasure() {
-    $("measure-overlay").classList.remove("hidden");
+  function clearCurrent() {
     corners = [];
     markers.forEach((m) => m.remove());
     markers = [];
     if (polygon) { polygon.remove(); polygon = null; }
+  }
+
+  function commitCurrentShape() {
+    if (corners.length < 3) return;
+    const layer = L.polygon(corners, SHAPE_STYLE[String(currentSign)]).addTo(map);
+    shapes.push({ pts: corners.slice(), sign: currentSign, layer });
+    clearCurrent();
+  }
+
+  function startShape(sign, hint) {
+    commitCurrentShape();
+    currentSign = sign;
+    $("measure-instructions").innerHTML = hint;
+    refreshMeasureUI();
+  }
+
+  $("btn-measure-add").addEventListener("click", () =>
+    startShape(1, "Tap the corners of the <b>next section</b>.")
+  );
+  $("btn-measure-cut").addEventListener("click", () =>
+    startShape(-1, "Now tap the corners of the part to <b>remove</b> \u2014 it won\u2019t be counted.")
+  );
+
+  function openMeasure() {
+    $("measure-overlay").classList.remove("hidden");
+    clearCurrent();
+    shapes.forEach((s) => s.layer.remove());
+    shapes = [];
+    currentSign = 1;
 
     const svc = currentService();
     $("measure-instructions").innerHTML =
       "Tap each <b>corner</b> of your " + svc.name.toLowerCase() + ". Pinch to zoom.";
+    $("btn-measure-cut").textContent =
+      svc.id === "patio" ? "\u2796 Cut out the pool" : "\u2796 Cut a part out";
 
     if (!map) {
       map = L.map("measure-map", { zoomControl: true, attributionControl: true });
       esriTiles().addTo(map);
       map.on("click", (e) => {
         corners.push(e.latlng);
+        const style = SHAPE_STYLE[String(currentSign)];
         const marker = L.circleMarker(e.latlng, {
-          radius: 9, color: "#fff", weight: 3, fillColor: "#0b66ff", fillOpacity: 1,
+          radius: 9, color: "#fff", weight: 3, fillColor: style.color, fillOpacity: 1,
         }).addTo(map);
         markers.push(marker);
         refreshMeasureUI();
@@ -458,28 +522,39 @@
 
   $("btn-measure-cancel").addEventListener("click", closeMeasure);
   $("btn-measure-undo").addEventListener("click", () => {
-    corners.pop();
-    const m = markers.pop();
-    if (m) m.remove();
+    if (corners.length > 0) {
+      corners.pop();
+      const m = markers.pop();
+      if (m) m.remove();
+    } else if (shapes.length > 0) {
+      // nothing in progress — undo the last finished shape instead
+      const s = shapes.pop();
+      s.layer.remove();
+      if (shapes.length === 0) currentSign = 1;
+    }
     refreshMeasureUI();
   });
+
   // Largest believable residential surface. Anything bigger means they
   // outlined the neighborhood at low zoom, not their driveway.
   const MAX_REASONABLE_SQFT = 25000;
 
   $("btn-measure-done").addEventListener("click", () => {
+    commitCurrentShape();
     const svc = currentService();
-    const sqft = Math.max(polygonAreaSqM(corners) * SQM_TO_SQFT, 1);
+    const sqft = Math.max(netSqM() * SQM_TO_SQFT, 1);
     if (sqft > MAX_REASONABLE_SQFT) {
       alert(
-        "Whoa — that outline covers " + Math.round(sqft).toLocaleString() +
+        "Whoa \u2014 that outline covers " + Math.round(sqft).toLocaleString() +
         " sq ft! Zoom in until you can clearly see your " + svc.name.toLowerCase() +
         ", then tap its corners."
       );
+      refreshMeasureUI();
       return;
     }
+    const hasCut = shapes.some((s) => s.sign < 0);
     state.sizes[svc.id] = {
-      label: "Measured on map",
+      label: hasCut ? "Measured on map (cut-out removed)" : "Measured on map",
       sqft: sqft,
       price: Math.max(sqft * svc.rate, svc.min || 0),
     };
