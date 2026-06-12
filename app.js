@@ -1,4 +1,4 @@
-/* Waverly instant-quote app.
+/* Alexander's Cleaning Service instant-quote app.
    One persistent satellite map underneath; a draggable bottom sheet drives the
    flow: welcome → services → size (per service) → quote → book → done.
    All logic client-side; prices and business info live in config.js. */

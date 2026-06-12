@@ -1,4 +1,4 @@
-# Waverly Pressure Washing — Design System
+# Alexander's Cleaning Service — Design System
 
 A small, opinionated system for the instant-quote app. Clean, airy,
 Google-Material-adjacent: rounded corners, soft shadows, generous spacing,
